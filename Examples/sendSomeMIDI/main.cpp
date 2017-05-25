@@ -74,7 +74,7 @@ int main() {
     const int connectedDevicesCount = connectedDevices.size();
     std::cout << "Detected devices: " << connectedDevicesCount << std::endl;
     for (int i = 0; i < connectedDevicesCount; i++){
-        std::cout << "Device " << i << ": " << deviceNameString (&connectedDevices[i]) << std::endl;
+        std::cout << "Device " << i << ": " << connectedDevices[i].deviceName << std::endl;
     }
     
     
@@ -91,7 +91,7 @@ int main() {
     };
     // Tell the midiInterface instance which device it should represent from now on
     midiInterface.selectDevice (&connectedDevices[selectedDevice]);
-    std::cout << "Connected to device " << deviceNameString (&connectedDevices[selectedDevice]) << std::endl;
+    std::cout << "Connected to device " << connectedDevices[selectedDevice].deviceName << std::endl;
     
     
     

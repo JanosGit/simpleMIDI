@@ -22,36 +22,9 @@ class CoreMIDIWrapper;
 
 //Groups a MIDIDeviceRef with its name
 typedef struct{
-    CFStringRef deviceName;
+    std::string deviceName;
     MIDIDeviceRef deviceRef;
 } MIDIDeviceInfo;
-
-
-
-
-
-
-//Converts the CFString Pointer from a MIDIDeviceInfo Struct into a C++ String
-const std::string deviceNameString(const MIDIDeviceInfo *mdi){
-    long int length = CFStringGetLength (mdi->deviceName);
-    char *nameCStrPointer;
-    
-    //get char pointer
-    nameCStrPointer = (char*)CFStringGetCStringPtr (mdi->deviceName, kCFStringEncodingASCII);
-    
-    // If a nullpointer is returned, no direct char buffer is available. A call to CFStringGetCString does the conversion
-    if (nameCStrPointer == NULL){
-        char nameCStrBuffer[length];
-        CFStringGetCString(mdi->deviceName, nameCStrBuffer, length, kCFStringEncodingASCII);
-        const std::string nameString (nameCStrBuffer);
-        return nameString;
-    }
-    else {
-        const std::string nameString(nameCStrPointer);
-        return nameString;
-    }
-}
-
 
 
 
@@ -67,7 +40,6 @@ const std::vector<MIDIDeviceInfo> searchMIDIDevices(){
     for (i = 0; i < availableDeviceCount; i++){
         MIDIDeviceInfo d;
         d.deviceRef = MIDIGetDevice(i);
-        d.deviceName = nil;
         
         //Check if device is online
         int offline = 0;
@@ -75,8 +47,26 @@ const std::vector<MIDIDeviceInfo> searchMIDIDevices(){
         
         if (!offline){
             //Get name of device
-            if (noErr != MIDIObjectGetStringProperty (d.deviceRef, kMIDIPropertyName, &d.deviceName)){
-                d.deviceName = CFStringCreateWithFormat (NULL, NULL, CFSTR("Error getting name of MIDI device # %d"), i);
+            CFStringRef deviceNameCFString;
+            if (noErr != MIDIObjectGetStringProperty (d.deviceRef, kMIDIPropertyName, &deviceNameCFString)){
+                d.deviceName = std::string("Error getting name of MIDI device") + std::to_string(i);
+            }
+            else{
+                // convert CFString to std::string
+                char *nameCStrPointer;
+                
+                //get char pointer
+                nameCStrPointer = (char*)CFStringGetCStringPtr (deviceNameCFString, kCFStringEncodingASCII);
+                
+                // If a nullpointer is returned, no direct char buffer is available. A call to CFStringGetCString does the conversion
+                if (nameCStrPointer == NULL){
+                    long int length = CFStringGetLength (deviceNameCFString);
+                    char nameCStrBuffer[length];
+                    CFStringGetCString(deviceNameCFString, nameCStrBuffer, length, kCFStringEncodingASCII);
+                    d.deviceName = std::string(nameCStrBuffer);              }
+                else {
+                    d.deviceName = std::string(nameCStrPointer);
+                }
             };
             allDevices.push_back (d);
         };
