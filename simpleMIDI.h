@@ -111,8 +111,8 @@ class SimpleMIDIAbstractBaseClass {
     
     // ---------- If simpleMIDI::ChannelAny is used as the receive channel, these functions will be called --------
     // ---------- As you see, they just call the standard receive functions and store the channel they came from. -
-    // ---------- The user can obtain them by calling getMostRecentSourceChannel(), however, the user needs --------
-    // ---------- might also override these functions
+    // ---------- The user can obtain them by calling getMostRecentSourceChannel(), however, the user -------------
+    // ---------- might also override these functions and catch the channel directly ------------------------------
     void receivedNoteWithChannel (uint8_t note, uint8_t velocity, bool onOff, simpleMIDI::Channel_t channel) {
         lastChannel = channel;
         receivedNote (note, velocity, onOff);
