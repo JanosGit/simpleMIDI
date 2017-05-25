@@ -63,8 +63,12 @@ int main() {
     // The class encapsulating all MIDI action
     MyDerivedMIDIClass midiInterface;
     
-    // Seach for connected
+    
+    
+    // Seach for connected devices
     const std::vector<MIDIDeviceInfo> connectedDevices = searchMIDIDevices();
+    
+    
     
     // How many MIDI interfaces are available? Print all names!
     const int connectedDevicesCount = connectedDevices.size();
@@ -72,6 +76,8 @@ int main() {
     for (int i = 0; i < connectedDevicesCount; i++){
         std::cout << "Device " << i << ": " << deviceNameString (&connectedDevices[i]) << std::endl;
     }
+    
+    
     
     // Ask the user to select a device
     std::cout << "\nChose device by index" << std::endl;
@@ -87,8 +93,12 @@ int main() {
     midiInterface.selectDevice (&connectedDevices[selectedDevice]);
     std::cout << "Connected to device " << deviceNameString (&connectedDevices[selectedDevice]) << std::endl;
     
+    
+    
     // Set a MIDI Channel to use for all following send-commands
     midiInterface.setSendChannel (simpleMIDI::Channel10);
+    
+    
     
     //Send some random Data
     midiInterface.sendNote (0x23, 0x34, true);
@@ -96,6 +106,8 @@ int main() {
     midiInterface.sendProgramChange (8);
     uint8_t testSysEx[12] = {simpleMIDI::SysExBegin, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, simpleMIDI::SysExEnd};
     midiInterface.sendSysEx (testSysEx, 12);
+    
+    
     
     //wait for incomming MIDI data or the users exit command
     bool running = true;
