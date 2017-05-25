@@ -112,9 +112,17 @@ public:
         return 0;
     };
     
-    // todo: implement this feature
+    
     int setReceiveChannel (Channel_t receiveChannel) override {
-        return 0;
+        
+        if (receiveChannel <= ChannelAny){
+            this-> receiveChannel = receiveChannel;
+            if (receiveChannel != ChannelAny){
+                lastChannel = receiveChannel;
+            }
+            return 0;
+        }
+        return 1;
     };
     
     //Sending Data
@@ -201,7 +209,8 @@ protected:
     char buffer[1024];
     MIDIPacketList *pktList;
     MIDIPacket *pkt;
-    uint8_t sendChannel;
+    Channel_t sendChannel = Channel1;
+    Channel_t receiveChannel = ChannelAny;
             
     int sendMidiBytes(uint8_t *bytesToSend, int length) {
         //Initialize Packetlist
@@ -227,25 +236,59 @@ protected:
         MIDIPacket *packet = (MIDIPacket*)newPackets->packet;
         int packetCount = newPackets->numPackets;
         for (int k = 0; k < packetCount; k++) {
-            Byte midiStatus = packet->data[0];
-            Byte midiChannel= midiStatus & 0x0F;
-            Byte midiCommand = midiStatus >> 4;
+            uint8_t midiStatus = packet->data[0];
+            uint8_t midiChannel = midiStatus & 0x0F;
+            uint8_t midiCommand = midiStatus >> 4;
             
-            if(midiCommand == NoteOnCmd){
-                callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOn);
+            if (callbackDestination->receiveChannel == ChannelAny){
+                
+                switch (midiCommand) {
+                    case NoteOnCmd:
+                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOn, (Channel_t)midiChannel);
+                    break;
+                    
+                    case NoteOffCmd:
+                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOff, (Channel_t)midiChannel);
+                    break;
+                    
+                    case ControlChangeCmd:
+                    callbackDestination->receivedControlChangeWithChannel (packet->data[1], packet->data[2], (Channel_t)midiChannel);
+                    break;
+                    
+                    case ProgrammChangeCmd:
+                    callbackDestination->receivedProgrammChangeWithChannel (packet->data[1], (Channel_t)midiChannel);
+                    break;
+                    
+                    default:
+                    std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;
+                    break;
+                }
             }
-            else if(midiCommand == NoteOffCmd){
-                callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOff);
+            else if (callbackDestination->receiveChannel == midiChannel){
+                
+                switch (midiCommand) {
+                    case NoteOnCmd:
+                    callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOn);
+                    break;
+                    
+                    case NoteOffCmd:
+                    callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOff);
+                    break;
+                    
+                    case ControlChangeCmd:
+                    callbackDestination->receivedControlChange (packet->data[1], packet->data[2]);
+                    break;
+                    
+                    case ProgrammChangeCmd:
+                    callbackDestination->receivedProgrammChange (packet->data[1]);
+                    break;
+                    
+                    default:
+                    std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;
+                    break;
+                }
             }
-            else if (midiCommand == ProgrammChangeCmd){
-                callbackDestination->receivedProgrammChange (packet->data[1]);
-            }
-            else if(midiCommand == ControlChangeCmd){
-                callbackDestination->receivedControlChange (packet->data[1], packet->data[2]);
-            }
-            else{
-                std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;
-            }
+            
             packet = MIDIPacketNext(packet);
         }
         

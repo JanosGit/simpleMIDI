@@ -24,6 +24,7 @@ class MyDerivedMIDIClass : public SimpleMIDI {
                       << std::hex << std::setfill('0') << std::setw(2) << (int)note
                       << " with velocity 0x"
                       << std::hex << std::setfill('0') << std::setw(2) << (int)velocity
+                      << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
                       << std::endl;
         }
         else {
@@ -31,6 +32,7 @@ class MyDerivedMIDIClass : public SimpleMIDI {
             << std::hex << std::setfill('0') << std::setw(2) << (int)note
             << " with velocity 0x"
             << std::hex << std::setfill('0') << std::setw(2) << (int)velocity
+            << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
             << std::endl;
 
         }
@@ -41,11 +43,14 @@ class MyDerivedMIDIClass : public SimpleMIDI {
                   << std::hex << std::setfill('0') << std::setw(2) << (int)control
                   << " with value 0x"
                   << std::hex << std::setfill('0') << std::setw(2) << (int)value
+                  << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
                   << std::endl;
     };
             
     void receivedProgrammChange (uint8_t programm) override {
-        std::cout << "Received programm change to programm " << (int)programm << std::endl;
+        std::cout << "Received programm change to programm " << (int)programm
+                  << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
+                  << std::endl;
     };
             
     void receivedSysEx (uint8_t *sysExBuffer, uint8_t length) override {
@@ -95,8 +100,10 @@ int main() {
     
     
     
-    // Set a MIDI Channel to use for all following send-commands
+    // Set a MIDI channel to use for all following send-commands
     midiInterface.setSendChannel (simpleMIDI::Channel10);
+    // Listen to all incomming MIDI channels
+    midiInterface.setReceiveChannel(simpleMIDI::ChannelAny);
     
     
     

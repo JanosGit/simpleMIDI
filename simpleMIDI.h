@@ -109,6 +109,30 @@ class SimpleMIDIAbstractBaseClass {
     // !! The sysExBuffer probably goes out of scope when the member function returns
     virtual void receivedSysEx (uint8_t *sysExBuffer, uint8_t length) = 0;
     
+    // ---------- If simpleMIDI::ChannelAny is used as the receive channel, these functions will be called --------
+    // ---------- As you see, they just call the standard receive functions and store the channel they came from. -
+    // ---------- The user can obtain them by calling getMostRecentSourceChannel(), however, the user needs --------
+    // ---------- might also override these functions
+    void receivedNoteWithChannel (uint8_t note, uint8_t velocity, bool onOff, simpleMIDI::Channel_t channel) {
+        lastChannel = channel;
+        receivedNote (note, velocity, onOff);
+    }
+    void receivedControlChangeWithChannel (uint8_t control, uint8_t value, simpleMIDI::Channel_t channel) {
+        lastChannel = channel;
+        receivedControlChange (control, value);
+    }
+    void receivedProgrammChangeWithChannel (uint8_t programm, simpleMIDI::Channel_t channel){
+        lastChannel = channel;
+        receivedProgrammChange(programm);
+    }
+    
+    const simpleMIDI::Channel_t getMostRecentSourceChannel() {
+        return lastChannel;
+    }
+    
+    protected:
+    simpleMIDI::Channel_t lastChannel;
+    
 };
 
 #include "ArchitectureSpecific/ArchitectureSpecific.h"
