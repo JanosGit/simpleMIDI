@@ -12,32 +12,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
+
 #include <CoreMIDI/CoreMIDI.h>
 
-// todo: change macros to const uint8_t
-//------------------------------------------------------------------------
-//Note On Off Argument
-#define NOTE_ON 0
-#define NOTE_OFF 1
-
-//MIDI Command
-#define NOTE_ON_CMD 0b1001
-#define NOTE_OFF_CMD 0b1000
-#define CC_CMD 0b1011
-#define PC_CMD 0b1100
-#define SYSEX_BEGIN 0b11110000
-#define SYSEX_END 0b11110111
-//------------------------------------------------------------------------
+using namespace simpleMIDI;
 
 class CoreMIDIWrapper;
-
-// todo: understand & use the contex-pointer coreMIDI uses to get rid of this ugly global variables
-CoreMIDIWrapper *currentMidiIO;
-uint8_t *sysExBuffer;
-uint32_t sysExBufferIdx;
-uint32_t sysExBufferSize;
-
-
 
 
 //Groups a MIDIDeviceRef with its name
@@ -111,29 +91,31 @@ const std::vector<MIDIDeviceInfo> searchMIDIDevices(){
 class CoreMIDIWrapper : public SimpleMIDIAbstractBaseClass {
     
 public:
-    CoreMIDIWrapper(){
-        // only needed for ugly readProc() solution
-        currentMidiIO = this;
-    };
     
     ~CoreMIDIWrapper() override {};
     
     //Setup Routines
     int selectDevice(const MIDIDeviceInfo *selectedDevice){
-        device = *selectedDevice;
         entity = MIDIDeviceGetEntity(selectedDevice->deviceRef, 0);
         source = MIDIEntityGetSource(entity, 0);
         destination = MIDIEntityGetDestination(entity, 0);
         MIDIClientCreate (CFSTR("client"), NULL, NULL, &client);
         MIDIOutputPortCreate (client, CFSTR("Out"), &outputPort);
         MIDIInputPortCreate (client, CFSTR("In"), readProc, NULL, &inputPort);
-        MIDIPortConnectSource (inputPort, source, NULL);
+        
+        // The refCon pointer passed to MIDIPortConnectSource will be passed to the
+        // readProc function every time it is called from this special input port.
+        // Passing "this" as the refCon makes it possible for the static readProc function
+        // to call the correspondind member functions of the class instance that created
+        // the connection
+        void *myRefCon = this;
+        MIDIPortConnectSource (inputPort, source, myRefCon);
         return 0;
     };
     
     
-    int setSendChannel (MIDIChannel_t sendChannel) override {
-        if (sendChannel > MIDIChannel16){
+    int setSendChannel (Channel_t sendChannel) override {
+        if (sendChannel > Channel16){
             return 1;
         }
         this->sendChannel = sendChannel;
@@ -141,7 +123,7 @@ public:
     };
     
     // todo: implement this feature
-    int setReceiveChannel (MIDIChannel_t receiveChannel) override {
+    int setReceiveChannel (Channel_t receiveChannel) override {
         return 0;
     };
     
@@ -155,14 +137,14 @@ public:
         uint8_t dataToSend[3];
         
         if(onOff == true){
-            dataToSend[0]= NOTE_ON_CMD<<4 | sendChannel;
-            dataToSend[1]=note;
-            dataToSend[2]=velocity;
+            dataToSend[0] = NoteOnCmd << 4 | sendChannel;
+            dataToSend[1] = note;
+            dataToSend[2] = velocity;
         }
             else {
-            dataToSend[0]= NOTE_OFF_CMD<<4 | sendChannel;
-            dataToSend[1]=note;
-            dataToSend[2]=velocity;
+            dataToSend[0] = NoteOffCmd << 4 | sendChannel;
+            dataToSend[1] = note;
+            dataToSend[2] = velocity;
         }
             
         //Send MIDI Data
@@ -179,9 +161,9 @@ public:
                 
         //Create MIDI Data
         uint8_t dataToSend[3];
-        dataToSend[0]=CC_CMD<<4 | sendChannel;
-        dataToSend[1]=control;
-        dataToSend[2]=value;
+        dataToSend[0] = ControlChangeCmd << 4 | sendChannel;
+        dataToSend[1] = control;
+        dataToSend[2] = value;
                 
         //Send MIDI Data
         this->sendMidiBytes(dataToSend, 3);
@@ -196,8 +178,8 @@ public:
         
         //Create MIDI Data
         uint8_t dataToSend[2];
-        dataToSend[0]=PC_CMD<<4 | sendChannel;
-        dataToSend[1]=program;
+        dataToSend[0] = ProgrammChangeCmd << 4 | sendChannel;
+        dataToSend[1] = program;
                 
         //Send MIDI Data
         this->sendMidiBytes(dataToSend, 2);
@@ -208,7 +190,7 @@ public:
             
     //SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
     int sendSysEx(uint8_t *dataBuffer, uint32_t length) override {
-        if(dataBuffer[0]==SYSEX_BEGIN){
+        if(dataBuffer[0] == SysExBegin){
             sendMidiBytes(dataBuffer, length);
             return 0;
         }
@@ -217,8 +199,7 @@ public:
     
     
 protected:
-    //MIDI device
-    MIDIDeviceInfo device;
+    // Everything describing the "physical" MIDI device
     MIDIEntityRef entity;
     MIDIClientRef client;
     MIDIPortRef outputPort;
@@ -247,6 +228,12 @@ protected:
     
     // todo: same thing as above: Don't use the currentMidiIO pointer
     static void readProc(const MIDIPacketList *newPackets, void *refCon, void *connRefCon){
+        
+        // The connRefCon pointer is the pointer was handed to the MIDIPortConnectSource function call when setting up the connection.
+        // As we passed a "this" pointer back then, this now can be used to call the member function of the right class Instance if there
+        // are multiple connections established
+        CoreMIDIWrapper *callbackDestination = (CoreMIDIWrapper*)connRefCon;
+
         MIDIPacket *packet = (MIDIPacket*)newPackets->packet;
         int packetCount = newPackets->numPackets;
         for (int k = 0; k < packetCount; k++) {
@@ -254,17 +241,17 @@ protected:
             Byte midiChannel= midiStatus & 0x0F;
             Byte midiCommand = midiStatus >> 4;
             
-            if(midiCommand==NOTE_ON_CMD){
-                currentMidiIO->receivedNote (packet->data[1], packet->data[2], true);
+            if(midiCommand == NoteOnCmd){
+                callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOn);
             }
-            else if(midiCommand==NOTE_OFF_CMD){
-                currentMidiIO->receivedNote (packet->data[1], packet->data[2], false);
+            else if(midiCommand == NoteOffCmd){
+                callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOff);
             }
-            else if (midiCommand==PC_CMD){
-                currentMidiIO->receivedProgrammChange (packet->data[1]);
+            else if (midiCommand == ProgrammChangeCmd){
+                callbackDestination->receivedProgrammChange (packet->data[1]);
             }
-            else if(midiCommand==CC_CMD){
-                currentMidiIO->receivedControlChange (packet->data[1], packet->data[2]);
+            else if(midiCommand == ControlChangeCmd){
+                callbackDestination->receivedControlChange (packet->data[1], packet->data[2]);
             }
             else{
                 std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;

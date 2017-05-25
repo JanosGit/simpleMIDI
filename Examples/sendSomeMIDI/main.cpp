@@ -7,7 +7,7 @@
 //
 
 #include <iostream>
-#include  <iomanip>
+#include <iomanip>
 #include "../../simpleMIDI.h"
 
 
@@ -88,13 +88,13 @@ int main() {
     std::cout << "Connected to device " << deviceNameString (&connectedDevices[selectedDevice]) << std::endl;
     
     // Set a MIDI Channel to use for all following send-commands
-    midiInterface.setSendChannel (MIDIChannel10);
+    midiInterface.setSendChannel (simpleMIDI::Channel10);
     
     //Send some random Data
     midiInterface.sendNote (0x23, 0x34, true);
     midiInterface.sendControlChange (0x12, 0x36);
     midiInterface.sendProgramChange (8);
-    uint8_t testSysEx[12] = {SYSEX_BEGIN, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SYSEX_END};
+    uint8_t testSysEx[12] = {simpleMIDI::SysExBegin, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, simpleMIDI::SysExEnd};
     midiInterface.sendSysEx (testSysEx, 12);
     
     //wait for incomming MIDI data or the users exit command

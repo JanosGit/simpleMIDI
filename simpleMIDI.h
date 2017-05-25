@@ -49,35 +49,50 @@
  */
 
 
-typedef enum : uint8_t {
-    MIDIChannel1 = 0,
-    MIDIChannel2 = 1,
-    MIDIChannel3 = 2,
-    MIDIChannel4 = 3,
-    MIDIChannel5 = 4,
-    MIDIChannel6 = 5,
-    MIDIChannel7 = 6,
-    MIDIChannel8 = 7,
-    MIDIChannel9 = 8,
-    MIDIChannel10 = 9,
-    MIDIChannel11 = 10,
-    MIDIChannel12 = 11,
-    MIDIChannel13 = 12,
-    MIDIChannel14 = 13,
-    MIDIChannel15 = 14,
-    MIDIChannel16 = 15,
-    MIDIChannelAny = 16
-} MIDIChannel_t;
+// Constants
+namespace simpleMIDI{
+    
+    const bool NoteOn = true;
+    const bool NoteOff = false;
+    
+    const uint8_t NoteOnCmd = 0b1001;
+    const uint8_t NoteOffCmd = 0b1000;
+    const uint8_t ControlChangeCmd = 0b1011;
+    const uint8_t ProgrammChangeCmd = 0b1100;
+    const uint8_t SysExBegin = 0b11110000;
+    const uint8_t SysExEnd = 0b11110111;
+    
+    
+    typedef enum : uint8_t {
+        Channel1 = 0,
+        Channel2 = 1,
+        Channel3 = 2,
+        Channel4 = 3,
+        Channel5 = 4,
+        Channel6 = 5,
+        Channel7 = 6,
+        Channel8 = 7,
+        Channel9 = 8,
+        Channel10 = 9,
+        Channel11 = 10,
+        Channel12 = 11,
+        Channel13 = 12,
+        Channel14 = 13,
+        Channel15 = 14,
+        Channel16 = 15,
+        ChannelAny = 16
+    } Channel_t;
+}
 
 
 // Abstract base class for all architecture specific implementations
 class SimpleMIDIAbstractBaseClass {
-public:
-// ----------- These member functions are implemented by the architecture specific implementations ------------
+    public:
+    // ----------- These member functions are implemented by the architecture specific implementations ------------
     virtual ~SimpleMIDIAbstractBaseClass() {};
     // set send and receive channels
-    virtual int setSendChannel (MIDIChannel_t sendChannel) = 0;
-    virtual int setReceiveChannel (MIDIChannel_t receiveChannel) = 0;
+    virtual int setSendChannel (simpleMIDI::Channel_t sendChannel) = 0;
+    virtual int setReceiveChannel (simpleMIDI::Channel_t receiveChannel) = 0;
     // send MIDI Messages
     virtual int sendNote (uint8_t note, uint8_t velocity, bool onOff) = 0;
     virtual int sendControlChange (uint8_t control, uint8_t value) = 0;
@@ -85,17 +100,19 @@ public:
     // !! SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
     virtual int sendSysEx(uint8_t *sysExBuffer, uint32_t length) = 0;
     
-// ----------- These member functions handling incomming data are needed to be implemented by the user --------
-// ----------- They are called from the architecture specific implementation if incomming data is available ---
+    // ----------- These member functions handling incomming data are needed to be implemented by the user --------
+    // ----------- They are called from the architecture specific implementation if incomming data is available ---
     
     virtual void receivedNote (uint8_t note, uint8_t velocity, bool onOff) = 0;
     virtual void receivedControlChange (uint8_t control, uint8_t value) = 0;
     virtual void receivedProgrammChange (uint8_t programm) = 0;
     // !! The sysExBuffer probably goes out of scope when the member function returns
     virtual void receivedSysEx (uint8_t *sysExBuffer, uint8_t length) = 0;
-
+    
 };
 
 #include "ArchitectureSpecific/ArchitectureSpecific.h"
+
+
 
 #endif /* simpleMIDI_h */
