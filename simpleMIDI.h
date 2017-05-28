@@ -81,7 +81,7 @@ namespace simpleMIDI{
         Channel15 = 14,
         Channel16 = 15,
         ChannelAny = 16
-    } Channel_t;
+    } Channel;
 }
 
 
@@ -91,8 +91,8 @@ class SimpleMIDIAbstractBaseClass {
     // ----------- These member functions are implemented by the architecture specific implementations ------------
     virtual ~SimpleMIDIAbstractBaseClass() {};
     // set send and receive channels
-    virtual int setSendChannel (simpleMIDI::Channel_t sendChannel) = 0;
-    virtual int setReceiveChannel (simpleMIDI::Channel_t receiveChannel) = 0;
+    virtual int setSendChannel (simpleMIDI::Channel sendChannel) = 0;
+    virtual int setReceiveChannel (simpleMIDI::Channel receiveChannel) = 0;
     // send MIDI Messages
     virtual int sendNote (uint8_t note, uint8_t velocity, bool onOff) = 0;
     virtual int sendControlChange (uint8_t control, uint8_t value) = 0;
@@ -113,25 +113,25 @@ class SimpleMIDIAbstractBaseClass {
     // ---------- As you see, they just call the standard receive functions and store the channel they came from. -
     // ---------- The user can obtain them by calling getMostRecentSourceChannel(), however, the user -------------
     // ---------- might also override these functions and catch the channel directly ------------------------------
-    void receivedNoteWithChannel (uint8_t note, uint8_t velocity, bool onOff, simpleMIDI::Channel_t channel) {
+    void receivedNoteWithChannel (uint8_t note, uint8_t velocity, bool onOff, simpleMIDI::Channel channel) {
         lastChannel = channel;
         receivedNote (note, velocity, onOff);
     }
-    void receivedControlChangeWithChannel (uint8_t control, uint8_t value, simpleMIDI::Channel_t channel) {
+    void receivedControlChangeWithChannel (uint8_t control, uint8_t value, simpleMIDI::Channel channel) {
         lastChannel = channel;
         receivedControlChange (control, value);
     }
-    void receivedProgrammChangeWithChannel (uint8_t programm, simpleMIDI::Channel_t channel){
+    void receivedProgrammChangeWithChannel (uint8_t programm, simpleMIDI::Channel channel){
         lastChannel = channel;
         receivedProgrammChange(programm);
     }
     
-    const simpleMIDI::Channel_t getMostRecentSourceChannel() {
+    const simpleMIDI::Channel getMostRecentSourceChannel() {
         return lastChannel;
     }
     
     protected:
-    simpleMIDI::Channel_t lastChannel;
+    simpleMIDI::Channel lastChannel;
     
 };
 

@@ -12,6 +12,10 @@
 #ifdef __APPLE__ //OSX specific implementation
 #import "MacOSX/CoreMIDIWrapper.h"
     typedef CoreMIDIWrapper SimpleMIDI;
+namespace simpleMIDI {
+    typedef CoreMIDIDeviceRessource HardwareRessource;
+}
+
     
 #elif defined _WIN32 //Windows specific implementation
     // todo: Implement Windows specific MIDI Class

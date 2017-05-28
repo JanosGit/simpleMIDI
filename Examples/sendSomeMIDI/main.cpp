@@ -16,8 +16,14 @@
 
 class MyDerivedMIDIClass : public SimpleMIDI {
     
-    // override all four "received..." member functions. Make sure to mark all of them with the override keyword
     public:
+    // The constructor of SimpleMIDI is called with a pointer to the Hardware ressource to be used for the MIDI connection passed as an argument. You might set this to a fixed ressource or pass a value from the constructor of your derived class to the constructor of the SimpleMIDI base class as done here
+    MyDerivedMIDIClass (const simpleMIDI::HardwareRessource *h) : SimpleMIDI (h) {
+        // some constructor stuff goes here, if needed
+    };
+    
+    
+    // override all four "received..." member functions. Make sure to mark all of them with the override keyword
     void receivedNote (uint8_t note, uint8_t velocity, bool noteOn) override {
         if (noteOn) {
             std::cout << "Received note on  0x"
@@ -65,13 +71,9 @@ class MyDerivedMIDIClass : public SimpleMIDI {
 
 int main() {
     
-    // The class encapsulating all MIDI action
-    MyDerivedMIDIClass midiInterface;
-    
-    
-    
+
     // Seach for connected devices
-    const std::vector<MIDIDeviceInfo> connectedDevices = searchMIDIDevices();
+    const std::vector<simpleMIDI::HardwareRessource> connectedDevices = searchMIDIDevices();
     
     
     
@@ -94,8 +96,14 @@ int main() {
             selectedDevice = connectedDevicesCount;
         };
     };
+    
+    
+    
+    // The class encapsulating all MIDI action
+    MyDerivedMIDIClass midiInterface(&connectedDevices[selectedDevice]);
+    
     // Tell the midiInterface instance which device it should represent from now on
-    midiInterface.selectDevice (&connectedDevices[selectedDevice]);
+   // midiInterface.selectDevice (&connectedDevices[selectedDevice]);
     std::cout << "Connected to device " << connectedDevices[selectedDevice].deviceName << std::endl;
     
     

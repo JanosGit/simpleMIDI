@@ -24,13 +24,13 @@ class CoreMIDIWrapper;
 typedef struct{
     std::string deviceName;
     MIDIDeviceRef deviceRef;
-} MIDIDeviceInfo;
+} CoreMIDIDeviceRessource;
 
 
 
 // Returns all coreMIDI devices currently available
-const std::vector<MIDIDeviceInfo> searchMIDIDevices(){
-    std::vector<MIDIDeviceInfo> allDevices;
+const std::vector<CoreMIDIDeviceRessource> searchMIDIDevices(){
+    std::vector<CoreMIDIDeviceRessource> allDevices;
     allDevices.clear();
     
     int availableDeviceCount = (int)MIDIGetNumberOfDevices();
@@ -38,7 +38,7 @@ const std::vector<MIDIDeviceInfo> searchMIDIDevices(){
     //Iterate through all devices
     int i;
     for (i = 0; i < availableDeviceCount; i++){
-        MIDIDeviceInfo d;
+        CoreMIDIDeviceRessource d;
         d.deviceRef = MIDIGetDevice(i);
         
         //Check if device is online
@@ -82,10 +82,8 @@ class CoreMIDIWrapper : public SimpleMIDIAbstractBaseClass {
     
 public:
     
-    ~CoreMIDIWrapper() override {};
-    
-    //Setup Routines
-    int selectDevice(const MIDIDeviceInfo *selectedDevice){
+
+    CoreMIDIWrapper (const CoreMIDIDeviceRessource *selectedDevice){
         entity = MIDIDeviceGetEntity(selectedDevice->deviceRef, 0);
         source = MIDIEntityGetSource(entity, 0);
         destination = MIDIEntityGetDestination(entity, 0);
@@ -100,11 +98,14 @@ public:
         // the connection
         void *myRefCon = this;
         MIDIPortConnectSource (inputPort, source, myRefCon);
-        return 0;
+
     };
     
     
-    int setSendChannel (Channel_t sendChannel) override {
+    ~CoreMIDIWrapper() override {};
+    
+    
+    int setSendChannel (Channel sendChannel) override {
         if (sendChannel > Channel16){
             return 1;
         }
@@ -113,7 +114,7 @@ public:
     };
     
     
-    int setReceiveChannel (Channel_t receiveChannel) override {
+    int setReceiveChannel (Channel receiveChannel) override {
         
         if (receiveChannel <= ChannelAny){
             this-> receiveChannel = receiveChannel;
@@ -209,8 +210,8 @@ protected:
     char buffer[1024];
     MIDIPacketList *pktList;
     MIDIPacket *pkt;
-    Channel_t sendChannel = Channel1;
-    Channel_t receiveChannel = ChannelAny;
+    Channel sendChannel = Channel1;
+    Channel receiveChannel = ChannelAny;
             
     int sendMidiBytes(uint8_t *bytesToSend, int length) {
         //Initialize Packetlist
@@ -224,8 +225,7 @@ protected:
     };
     
     
-    
-    // todo: same thing as above: Don't use the currentMidiIO pointer
+    //todo: implement sysex handling
     static void readProc(const MIDIPacketList *newPackets, void *refCon, void *connRefCon){
         
         // The connRefCon pointer is the pointer was handed to the MIDIPortConnectSource function call when setting up the connection.
@@ -244,19 +244,19 @@ protected:
                 
                 switch (midiCommand) {
                     case NoteOnCmd:
-                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOn, (Channel_t)midiChannel);
+                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOn, (Channel)midiChannel);
                     break;
                     
                     case NoteOffCmd:
-                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOff, (Channel_t)midiChannel);
+                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOff, (Channel)midiChannel);
                     break;
                     
                     case ControlChangeCmd:
-                    callbackDestination->receivedControlChangeWithChannel (packet->data[1], packet->data[2], (Channel_t)midiChannel);
+                    callbackDestination->receivedControlChangeWithChannel (packet->data[1], packet->data[2], (Channel)midiChannel);
                     break;
                     
                     case ProgrammChangeCmd:
-                    callbackDestination->receivedProgrammChangeWithChannel (packet->data[1], (Channel_t)midiChannel);
+                    callbackDestination->receivedProgrammChangeWithChannel (packet->data[1], (Channel)midiChannel);
                     break;
                     
                     default:
@@ -282,7 +282,7 @@ protected:
                     case ProgrammChangeCmd:
                     callbackDestination->receivedProgrammChange (packet->data[1]);
                     break;
-                    
+                        
                     default:
                     std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;
                     break;
