@@ -98,7 +98,7 @@ class SimpleMIDIAbstractBaseClass {
     virtual int sendControlChange (uint8_t control, uint8_t value) = 0;
     virtual int sendProgramChange (uint8_t program) = 0;
     // !! SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    virtual int sendSysEx(uint8_t *sysExBuffer, uint32_t length) = 0;
+    virtual int sendSysEx(const uint8_t *sysExBuffer, uint32_t length) = 0;
     
     // ----------- These member functions handling incomming data are needed to be implemented by the user --------
     // ----------- They are called from the architecture specific implementation if incomming data is available ---

@@ -82,7 +82,7 @@ class CoreMIDIWrapper : public SimpleMIDIAbstractBaseClass {
     
 public:
     
-
+    
     CoreMIDIWrapper (const CoreMIDIDeviceRessource *selectedDevice){
         entity = MIDIDeviceGetEntity(selectedDevice->deviceRef, 0);
         source = MIDIEntityGetSource(entity, 0);
@@ -98,7 +98,7 @@ public:
         // the connection
         void *myRefCon = this;
         MIDIPortConnectSource (inputPort, source, myRefCon);
-
+        
     };
     
     
@@ -139,161 +139,161 @@ public:
             dataToSend[0] = NoteOnCmd << 4 | sendChannel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
-        }
+            }
             else {
-            dataToSend[0] = NoteOffCmd << 4 | sendChannel;
-            dataToSend[1] = note;
-            dataToSend[2] = velocity;
-        }
+                dataToSend[0] = NoteOffCmd << 4 | sendChannel;
+                dataToSend[1] = note;
+                dataToSend[2] = velocity;
+            }
             
-        //Send MIDI Data
-        this->sendMidiBytes(dataToSend, 3);
+            //Send MIDI Data
+            this->sendMidiBytes(dataToSend, 3);
             
-        return 0;
-    };
-    
-    
-    int sendControlChange(uint8_t control, uint8_t value) override {
-        //Check if values are 7Bit as the MIDI Standard requires
-        if((control>>7)==1) return 1;
-        if((value>>7)==1) return 2;
-                
-        //Create MIDI Data
-        uint8_t dataToSend[3];
-        dataToSend[0] = ControlChangeCmd << 4 | sendChannel;
-        dataToSend[1] = control;
-        dataToSend[2] = value;
-                
-        //Send MIDI Data
-        this->sendMidiBytes(dataToSend, 3);
-                
-        return 0;
-    };
-            
-            
-    int sendProgramChange(uint8_t program) override {
-        //Check if values are 7Bit as the MIDI Standard requires
-        if((program>>7)==1) return 1;
-        
-        //Create MIDI Data
-        uint8_t dataToSend[2];
-        dataToSend[0] = ProgrammChangeCmd << 4 | sendChannel;
-        dataToSend[1] = program;
-                
-        //Send MIDI Data
-        this->sendMidiBytes(dataToSend, 2);
-                
-        return 0;
-    };
-            
-            
-    //SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    int sendSysEx(uint8_t *dataBuffer, uint32_t length) override {
-        if(dataBuffer[0] == SysExBegin){
-            sendMidiBytes(dataBuffer, length);
             return 0;
-        }
-        return 1;
-    };
-    
-    
-protected:
-    // Everything describing the "physical" MIDI device
-    MIDIEntityRef entity;
-    MIDIClientRef client;
-    MIDIPortRef outputPort;
-    MIDIPortRef inputPort;
-    MIDIEndpointRef destination;
-    MIDIEndpointRef source;
-    
-    //Everything needed for sending
-    char buffer[1024];
-    MIDIPacketList *pktList;
-    MIDIPacket *pkt;
-    Channel sendChannel = Channel1;
-    Channel receiveChannel = ChannelAny;
+            };
             
-    int sendMidiBytes(uint8_t *bytesToSend, int length) {
-        //Initialize Packetlist
-        pktList = (MIDIPacketList*)&buffer;
-        pkt = MIDIPacketListInit (pktList);
-        //Add bytes to send to list
-        pkt = MIDIPacketListAdd (pktList, 1024, pkt, 0, length, bytesToSend);
-        //Send list
-        MIDISend (outputPort, destination, pktList);
-        return 0;
-    };
-    
-    
-    //todo: implement sysex handling
-    static void readProc(const MIDIPacketList *newPackets, void *refCon, void *connRefCon){
-        
-        // The connRefCon pointer is the pointer was handed to the MIDIPortConnectSource function call when setting up the connection.
-        // As we passed a "this" pointer back then, this now can be used to call the member function of the right class Instance if there
-        // are multiple connections established
-        CoreMIDIWrapper *callbackDestination = (CoreMIDIWrapper*)connRefCon;
-
-        MIDIPacket *packet = (MIDIPacket*)newPackets->packet;
-        int packetCount = newPackets->numPackets;
-        for (int k = 0; k < packetCount; k++) {
-            uint8_t midiStatus = packet->data[0];
-            uint8_t midiChannel = midiStatus & 0x0F;
-            uint8_t midiCommand = midiStatus >> 4;
             
-            if (callbackDestination->receiveChannel == ChannelAny){
+            int sendControlChange(uint8_t control, uint8_t value) override {
+                //Check if values are 7Bit as the MIDI Standard requires
+                if((control>>7)==1) return 1;
+                if((value>>7)==1) return 2;
                 
-                switch (midiCommand) {
-                    case NoteOnCmd:
-                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOn, (Channel)midiChannel);
-                    break;
-                    
-                    case NoteOffCmd:
-                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOff, (Channel)midiChannel);
-                    break;
-                    
-                    case ControlChangeCmd:
-                    callbackDestination->receivedControlChangeWithChannel (packet->data[1], packet->data[2], (Channel)midiChannel);
-                    break;
-                    
-                    case ProgrammChangeCmd:
-                    callbackDestination->receivedProgrammChangeWithChannel (packet->data[1], (Channel)midiChannel);
-                    break;
-                    
-                    default:
-                    std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;
-                    break;
+                //Create MIDI Data
+                uint8_t dataToSend[3];
+                dataToSend[0] = ControlChangeCmd << 4 | sendChannel;
+                dataToSend[1] = control;
+                dataToSend[2] = value;
+                
+                //Send MIDI Data
+                this->sendMidiBytes(dataToSend, 3);
+                
+                return 0;
+            };
+            
+            
+            int sendProgramChange(uint8_t program) override {
+                //Check if values are 7Bit as the MIDI Standard requires
+                if((program>>7)==1) return 1;
+                
+                //Create MIDI Data
+                uint8_t dataToSend[2];
+                dataToSend[0] = ProgrammChangeCmd << 4 | sendChannel;
+                dataToSend[1] = program;
+                
+                //Send MIDI Data
+                this->sendMidiBytes(dataToSend, 2);
+                
+                return 0;
+            };
+            
+            
+            //SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
+            int sendSysEx(const uint8_t *sysExBuffer, uint32_t length) override {
+                if(sysExBuffer[0] == SysExBegin){
+                    sendMidiBytes((uint8_t*)sysExBuffer, length);
+                    return 0;
                 }
-            }
-            else if (callbackDestination->receiveChannel == midiChannel){
+                return 1;
+            };
+            
+            
+        protected:
+            // Everything describing the "physical" MIDI device
+            MIDIEntityRef entity;
+            MIDIClientRef client;
+            MIDIPortRef outputPort;
+            MIDIPortRef inputPort;
+            MIDIEndpointRef destination;
+            MIDIEndpointRef source;
+            
+            //Everything needed for sending
+            char buffer[1024];
+            MIDIPacketList *pktList;
+            MIDIPacket *pkt;
+            Channel sendChannel = Channel1;
+            Channel receiveChannel = ChannelAny;
+            
+            int sendMidiBytes(uint8_t *bytesToSend, int length) {
+                //Initialize Packetlist
+                pktList = (MIDIPacketList*)&buffer;
+                pkt = MIDIPacketListInit (pktList);
+                //Add bytes to send to list
+                pkt = MIDIPacketListAdd (pktList, 1024, pkt, 0, length, bytesToSend);
+                //Send list
+                MIDISend (outputPort, destination, pktList);
+                return 0;
+            };
+            
+            
+            //todo: implement sysex handling
+            static void readProc(const MIDIPacketList *newPackets, void *refCon, void *connRefCon){
                 
-                switch (midiCommand) {
-                    case NoteOnCmd:
-                    callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOn);
-                    break;
+                // The connRefCon pointer is the pointer was handed to the MIDIPortConnectSource function call when setting up the connection.
+                // As we passed a "this" pointer back then, this now can be used to call the member function of the right class Instance if there
+                // are multiple connections established
+                CoreMIDIWrapper *callbackDestination = (CoreMIDIWrapper*)connRefCon;
+                
+                MIDIPacket *packet = (MIDIPacket*)newPackets->packet;
+                int packetCount = newPackets->numPackets;
+                for (int k = 0; k < packetCount; k++) {
+                    uint8_t midiStatus = packet->data[0];
+                    uint8_t midiChannel = midiStatus & 0x0F;
+                    uint8_t midiCommand = midiStatus >> 4;
                     
-                    case NoteOffCmd:
-                    callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOff);
-                    break;
-                    
-                    case ControlChangeCmd:
-                    callbackDestination->receivedControlChange (packet->data[1], packet->data[2]);
-                    break;
-                    
-                    case ProgrammChangeCmd:
-                    callbackDestination->receivedProgrammChange (packet->data[1]);
-                    break;
+                    if (callbackDestination->receiveChannel == ChannelAny){
                         
-                    default:
-                    std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;
-                    break;
+                        switch (midiCommand) {
+                            case NoteOnCmd:
+                                callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOn, (Channel)midiChannel);
+                                break;
+                                
+                            case NoteOffCmd:
+                                callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOff, (Channel)midiChannel);
+                                break;
+                                
+                            case ControlChangeCmd:
+                                callbackDestination->receivedControlChangeWithChannel (packet->data[1], packet->data[2], (Channel)midiChannel);
+                                break;
+                                
+                            case ProgrammChangeCmd:
+                                callbackDestination->receivedProgrammChangeWithChannel (packet->data[1], (Channel)midiChannel);
+                                break;
+                                
+                            default:
+                                std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;
+                                break;
+                        }
+                    }
+                    else if (callbackDestination->receiveChannel == midiChannel){
+                        
+                        switch (midiCommand) {
+                            case NoteOnCmd:
+                                callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOn);
+                                break;
+                                
+                            case NoteOffCmd:
+                                callbackDestination->receivedNote (packet->data[1], packet->data[2], NoteOff);
+                                break;
+                                
+                            case ControlChangeCmd:
+                                callbackDestination->receivedControlChange (packet->data[1], packet->data[2]);
+                                break;
+                                
+                            case ProgrammChangeCmd:
+                                callbackDestination->receivedProgrammChange (packet->data[1]);
+                                break;
+                                
+                            default:
+                                std::cout << "Received Unknown MIDI Command: " << std::bitset<8>(packet->data[0]) << " - " << std::bitset<8>(packet->data[1]) << " cmd=" << std::bitset<4>(midiCommand) << std::endl;
+                                break;
+                        }
+                    }
+                    
+                    packet = MIDIPacketNext(packet);
                 }
+                
             }
             
-            packet = MIDIPacketNext(packet);
-        }
-        
-    }
-    
-};
-
+            };
+            
 #endif /* coreMidiWrapper_h */
