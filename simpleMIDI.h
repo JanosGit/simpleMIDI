@@ -98,7 +98,7 @@ class SimpleMIDIAbstractBaseClass {
     virtual int sendControlChange (uint8_t control, uint8_t value) = 0;
     virtual int sendProgramChange (uint8_t program) = 0;
     // !! SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    virtual int sendSysEx(const uint8_t *sysExBuffer, uint32_t length) = 0;
+    virtual int sendSysEx(const uint8_t *sysExBuffer, uint16_t length) = 0;
     
     // ----------- These member functions handling incomming data are needed to be implemented by the user --------
     // ----------- They are called from the architecture specific implementation if incomming data is available ---
@@ -107,7 +107,7 @@ class SimpleMIDIAbstractBaseClass {
     virtual void receivedControlChange (uint8_t control, uint8_t value) = 0;
     virtual void receivedProgrammChange (uint8_t programm) = 0;
     // !! The sysExBuffer probably goes out of scope when the member function returns
-    virtual void receivedSysEx (uint8_t *sysExBuffer, uint8_t length) = 0;
+    virtual void receivedSysEx (const uint8_t *sysExBuffer, const uint16_t length) = 0;
     
     // ---------- If simpleMIDI::ChannelAny is used as the receive channel, these functions will be called --------
     // ---------- As you see, they just call the standard receive functions and store the channel they came from. -
