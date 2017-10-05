@@ -10,28 +10,15 @@
 #define ArchitectureSpecific_h
     
 #ifdef __APPLE__ //OSX specific implementation
-#import "MacOSX/CoreMIDIWrapper.h"
-    typedef CoreMIDIWrapper SimpleMIDI;
-namespace simpleMIDI {
-    typedef CoreMIDIDeviceRessource HardwareRessource;
-}
+#define SIMPLE_MIDI_MAC
+#define SIMPLE_MIDI_MULTITHREADED
+#include "MacOSX/CoreMIDIWrapperDef.h"
 
-    
 #elif defined _WIN32 //Windows specific implementation
-    // todo: Implement Windows specific MIDI Class
-#error "Currently no Windows specific implementation of SimpleMIDI
-    
+#define SIMPLE_MIDI_WINDOWS
+#define SIMPLE_MIDI_MULTITHREADED
 #elif defined ARDUINO //Arduino specific implementation
-#include "Arduino/SerialMIDIWrapper.h"
-    typedef SerialMIDIWrapper SimpleMIDI;
-    
-#else
-#error "Unknown Plattfom for SimpleMIDI"
-    
+#define SIMPLE_MIDI_ARDUINO
 #endif
-
-
-
-
 
 #endif /* ArchitectureSpecific_h */

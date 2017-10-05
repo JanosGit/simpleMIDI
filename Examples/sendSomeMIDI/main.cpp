@@ -14,11 +14,11 @@
 // First of all, create a derived class and fill all receive-methods with your own code.
 // Here we will just print out any received MIDI messages to the command line
 
-class MyDerivedMIDIClass : public SimpleMIDI {
+class MyDerivedMIDIClass : public SimpleMIDI::PlatformSpecificImplementation {
     
     public:
     // The constructor of SimpleMIDI is called with a pointer to the Hardware ressource to be used for the MIDI connection passed as an argument. You might set this to a fixed ressource or pass a value from the constructor of your derived class to the constructor of the SimpleMIDI base class as done here
-    MyDerivedMIDIClass (const simpleMIDI::HardwareRessource *h) : SimpleMIDI (h) {
+    MyDerivedMIDIClass (const SimpleMIDI::HardwareRessource &h) : SimpleMIDI::PlatformSpecificImplementation (h) {
         // some constructor stuff goes here, if needed
     };
     
@@ -53,13 +53,13 @@ class MyDerivedMIDIClass : public SimpleMIDI {
                   << std::endl;
     };
             
-    void receivedProgrammChange (uint8_t programm) override {
+    void receivedProgramChange (uint8_t programm) override {
         std::cout << "Received programm change to programm " << (int)programm
                   << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
                   << std::endl;
     };
             
-    void receivedSysEx (uint8_t *sysExBuffer, uint8_t length) override {
+    void receivedSysEx (const uint8_t *sysExBuffer, const uint16_t length) override {
         std::cout << "Received SysEx with content";
         for (int i = 0; i < length; i++) {
             std::cout << " 0x" << std::hex << std::setfill('0') << std::setw(2) << (int)sysExBuffer[i];
@@ -73,7 +73,7 @@ int main() {
     
 
     // Seach for connected devices
-    const std::vector<simpleMIDI::HardwareRessource> connectedDevices = searchMIDIDevices();
+    const std::vector<SimpleMIDI::HardwareRessource> connectedDevices = searchMIDIDevices();
     
     
     
@@ -100,7 +100,7 @@ int main() {
     
     
     // The class encapsulating all MIDI action
-    MyDerivedMIDIClass midiInterface(&connectedDevices[selectedDevice]);
+    MyDerivedMIDIClass midiInterface(connectedDevices[selectedDevice]);
     
     // Tell the midiInterface instance which device it should represent from now on
    // midiInterface.selectDevice (&connectedDevices[selectedDevice]);
@@ -109,9 +109,9 @@ int main() {
     
     
     // Set a MIDI channel to use for all following send-commands
-    midiInterface.setSendChannel (simpleMIDI::Channel10);
+    midiInterface.setSendChannel (SimpleMIDI::Channel10);
     // Listen to all incomming MIDI channels
-    midiInterface.setReceiveChannel(simpleMIDI::ChannelAny);
+    midiInterface.setReceiveChannel(SimpleMIDI::ChannelAny);
     
     
     
@@ -119,7 +119,7 @@ int main() {
     midiInterface.sendNote (0x23, 0x34, true);
     midiInterface.sendControlChange (0x12, 0x36);
     midiInterface.sendProgramChange (8);
-    uint8_t testSysEx[12] = {simpleMIDI::SysExBegin, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, simpleMIDI::SysExEnd};
+    uint8_t testSysEx[12] = {SimpleMIDI::SysExBegin, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SimpleMIDI::SysExEnd};
     midiInterface.sendSysEx (testSysEx, 12);
     
     
