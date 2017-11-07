@@ -9,44 +9,7 @@
 #ifndef simpleMIDI_h
 #define simpleMIDI_h
 
-/* To use simpleMIDI do the following
- 
-- Roll out your own MIDI class, inheriting from public SimpleMIDI. The version fitting your architecture is selected automatically.
-- Override the member functions handling received data and fill them with your code.
- Example:
- 
- class MyMIDI : public simpleMIDI {
- public:
-    void receivedNote (uint8_t note, uint8_t velocity, bool noteOn) override {
-        if (noteOn) {
-            std::cout << "Received note on " << note << " with velocity " << velocity << std::endl;
-        }
-        else {
-            std::cout << "Received note off " << note << " with velocity " << velocity << std::endl;
-        }
-    };
- 
-    void receivedControlChange (uint8_t control, uint8_t value) override {
-        // do something with your control change
-        // ...
-    };
- 
-    void receivedProgramChange (uint8_t program) override {
-        // do something with your program change
-        // ...
-    };
- 
-    void receivedSysEx (uint8_t *sysExBuffer, uint8_t length) override {
-        // consider copying the sysExBuffer content to another memory location here
-        // as it goes out of scope as soon as this function returns
-    };
- 
- private:
-    int myPrivateMemberVariable; //whatever you will need it for...
- }
- 
- 
- */
+
 
 #include "ArchitectureSpecific/ArchitectureSpecific.h"
 
@@ -57,23 +20,35 @@ class SimpleMIDI {
     static const bool NoteOn = true;
     static const bool NoteOff = false;
 
-    // todo: change all to hex values
+    //=========================================================================
+    // All possible MIDI commands, the standard describes
     // 4 Bit commands
-    static const uint8_t NoteOnCmd = 0b1001;
-    static const uint8_t NoteOffCmd = 0b1000;
-    static const uint8_t MonophonicAftertouchCmd = 0xD;
-    static const uint8_t PolyphonicAftertouchCmd = 0xA;
-    static const uint8_t ControlChangeCmd = 0b1011;
-    static const uint8_t ProgrammChangeCmd = 0b1100;
-    static const uint8_t PitchBendCmd = 0xE;
+    static const uint8_t NoteOffCmd =               0b1000; // 2 data Bytes
+    static const uint8_t NoteOnCmd =                0b1001; // 2 data Bytes
+    static const uint8_t PolyphonicAftertouchCmd =  0b1010; // 2 data Bytes
+    static const uint8_t ControlChangeCmd =         0b1011; // 2 data Bytes
+    static const uint8_t ProgrammChangeCmd =        0b1100; // 1 data Byte
+    static const uint8_t MonophonicAftertouchCmd =  0b1101; // 1 data Byte
+    static const uint8_t PitchBendCmd =             0b1110; // 2 data Bytes
+    // --> a command with a form of 0b110xxxxx will have only one data byte
     // 8 Bit commands
-    static const uint8_t SysExBegin = 0b11110000;
-    static const uint8_t SysExEnd = 0b11110111;
-    static const uint8_t ClockTickCmd = 0xF8;
-    static const uint8_t StartCmd = 0xFA;
-    static const uint8_t StopCmd = 0xFC;
-    static const uint8_t ContinueCmd = 0xFB;
-    static const uint8_t SongPositionPointerCmd = 0xF2;
+    static const uint8_t SysExBegin =               0b11110000; // x data Bytes
+    static const uint8_t MIDITimecodeQuarterFrame = 0b11110001; // 1 data Byte
+    static const uint8_t SongPositionPointerCmd =   0b11110010; // 2 data Bytes
+    static const uint8_t SongSelectCmd =            0b11110011; // 1 data Byte
+                                                //  0b11110100 undefined
+                                                //  0b11110101 undefined
+    static const uint8_t TuneRequest =              0b11110110; // 0 data Bytes
+    static const uint8_t SysExEnd =                 0b11110111; // 0 data Bytes
+    static const uint8_t ClockTickCmd =             0b11111000; // 0 data Bytes
+                                                //  0b11111001 undefined
+    static const uint8_t StartCmd =                 0b11111010; // 0 data Bytes
+    static const uint8_t ContinueCmd =              0b11111011; // 0 data Bytes
+    static const uint8_t StopCmd =                  0b11111100; // 0 data Bytes
+                                                //  0b11111101 undefined
+    static const uint8_t ActiveSense =              0b11111110; // 0 data Bytes
+    static const uint8_t MIDIReset =                0b11111111;
+
 
 
     enum Channel : uint8_t {
@@ -99,22 +74,56 @@ class SimpleMIDI {
 
     // ----------- These member functions are implemented by the architecture specific implementations ------------
     virtual ~SimpleMIDI() {};
-    // set send and receive channels
-    virtual int setSendChannel (Channel sendChannel) = 0;
-    virtual int setReceiveChannel (Channel receiveChannel) = 0;
+
+    enum RetValue : int8_t {
+        NoErrorCheckingForSpeedReasons = -1,
+        Success = 0,
+        FirstArgumentOutOfRange = 1,
+        SecondArgumentOutOfRange = 2,
+        MissingSysExStart = 3,
+        MissingSysExEnd = 4
+    };
+
     // send MIDI Messages
-    virtual int sendNote (uint8_t note, uint8_t velocity, bool onOff) = 0;
-    virtual int sendAftertouchEvent (uint8_t note, uint8_t velocity) = 0;
-    virtual int sendControlChange (uint8_t control, uint8_t value) = 0;
-    virtual int sendProgramChange (uint8_t program) = 0;
-    virtual int sendPitchBend (int16_t pitch) = 0;
+    virtual RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff) = 0;
+    virtual RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity) = 0;
+    virtual RetValue sendControlChange (uint8_t control, uint8_t value) = 0;
+    virtual RetValue sendProgramChange (uint8_t program) = 0;
+    virtual RetValue sendPitchBend (int16_t pitch) = 0;
     // !! SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    virtual int sendSysEx(const uint8_t *sysExBuffer, uint16_t length) = 0;
+    virtual RetValue sendSysEx (const uint8_t *sysExBuffer, uint16_t length) = 0;
+    virtual RetValue sendMIDITimecodeQuarterFrame (uint8_t quarterFrame) = 0;
+    virtual RetValue sendMIDISongPositionPointer (uint16_t positionInBeats) = 0;
+    virtual RetValue sendSongSelect (uint8_t songToSelect) = 0;
+    virtual void sendTuneRequest() = 0;
     virtual void sendMIDIClockTick() = 0;
     virtual void sendMIDIStart() = 0;
     virtual void sendMIDIStop() = 0;
     virtual void sendMIDIContinue() = 0;
-    virtual int sendMIDISongPositionPointer (uint16_t positionInBeats) = 0;
+    virtual void sendActiveSense() = 0;
+    virtual void sendReset() = 0;
+
+
+    bool setSendChannel (Channel sendChannel) {
+        if (sendChannel > Channel16) {
+            return false;
+        }
+        this->sendChannel = sendChannel;
+        return true;
+    };
+
+
+    bool setReceiveChannel (Channel receiveChannel) {
+
+        if (receiveChannel <= ChannelAny) {
+            this->receiveChannel = receiveChannel;
+            if (receiveChannel != ChannelAny) {
+                lastChannel = receiveChannel;
+            }
+            return true;
+        }
+        return false;
+    };
     
     // ----------- These member functions handling incomming data are needed to be implemented by the user --------
     // ----------- They are called from the architecture specific implementation if incomming data is available ---
@@ -181,10 +190,24 @@ class SimpleMIDI {
     virtual void receivedSysEx (const uint8_t *sysExBuffer, const uint16_t length) {};
 
     /**
+     * Gets called when a MIDI timecode quarter frame was received. The application has to override this function if
+     * it wants to handle MIDI timecode messages.
+     * @param quarterFrame todo: what is a quarter frame? ;)
+     */
+    virtual void receivedMIDITimecodeQuarterFrame (uint8_t quarterFrame) {};
+
+    /**
      * Gets called when a MIDI clock tick was received. Usually there are twenty-four ticks per quarter note.
      * The application has to override this function if it wants to handle MIDI clock ticks.
      */
     virtual void receivedMIDIClockTick() {};
+
+    /**
+     * Gets called when a Song Select command was received. The application has to override this function if
+     * it wants to handle Song Select commands.
+     * @param selectedSong The number of the selected song
+     */
+    virtual void receivedSongSelect (uint8_t selectedSong) {};
 
     /**
      * Gets called when a MIDI start event was received. The application has to override this function if it wants
@@ -209,6 +232,15 @@ class SimpleMIDI {
      * function if it wants to handle MIDI song position pointer events.
      */
     virtual void receivedSongPositionPointer (uint16_t positionInBeats){};
+
+
+    virtual void receivedTuneRequest() {};
+
+
+    virtual void receivedActiveSense() {};
+
+
+    virtual void receivedMIDIReset() {};
 
     /**
      * Gets called when a MIDI command was received that is not one of the commands described above. The
@@ -293,12 +325,21 @@ class SimpleMIDI {
 
 #ifdef SIMPLE_MIDI_MAC
     typedef CoreMIDIDeviceRessource HardwareRessource;
-    typedef CoreMIDIWrapperDef PlatformSpecificImplementation;
+    typedef CoreMIDIWrapper PlatformSpecificImplementation;
 #endif
+
+
 protected:
     Channel lastChannel;
+    Channel sendChannel = Channel1;
+    Channel receiveChannel = ChannelAny;
     
 };
+
+
+
+
+
 
 #ifdef SIMPLE_MIDI_MULTITHREADED
 #include <thread>
@@ -413,7 +454,7 @@ private:
 #error "Currently no Windows specific implementation of SimpleMIDI"
 
 #elif defined SIMPLE_MIDI_ARDUINO
-#include "Arduino/SerialMIDIWrapper.h"
+#include "ArchitectureSpecific/Arduino/ArduinoSerialMIDIWrapperImpl.h"
     typedef SerialMIDIWrapper SimpleMIDI;
 
 #else

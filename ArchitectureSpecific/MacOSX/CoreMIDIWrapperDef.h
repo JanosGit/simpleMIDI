@@ -15,7 +15,7 @@
 
 #include <CoreMIDI/CoreMIDI.h>
 
-class CoreMIDIWrapperDef;
+class CoreMIDIWrapper;
 
 
 //Groups a MIDIDeviceRef with its name

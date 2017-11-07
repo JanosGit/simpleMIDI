@@ -9,15 +9,15 @@
 #define coreMidiWrapper_mm
 
 #include "CoreMIDIWrapperDef.h"
-#include "../../simpleMIDI.h"
+#include "simpleMIDI.h"
 
 
-class CoreMIDIWrapperDef : public SimpleMIDI {
+class CoreMIDIWrapper : public SimpleMIDI {
 
 public:
 
 
-    CoreMIDIWrapperDef (const CoreMIDIDeviceRessource &selectedDevice) {
+    CoreMIDIWrapper (const CoreMIDIDeviceRessource &selectedDevice) {
         entity = MIDIDeviceGetEntity (selectedDevice.deviceRef, 0);
         source = MIDIEntityGetSource (entity, 0);
         destination = MIDIEntityGetDestination (entity, 0);
@@ -36,43 +36,24 @@ public:
     };
 
 
-    ~CoreMIDIWrapperDef () override {
+    ~CoreMIDIWrapper () override {
     };
 
 
-    int setSendChannel (Channel sendChannel) override {
-        if (sendChannel > Channel16) {
-            return 1;
-        }
-        this->sendChannel = sendChannel;
-        return 0;
-    };
 
-
-    int setReceiveChannel (Channel receiveChannel) override {
-
-        if (receiveChannel <= ChannelAny) {
-            this->receiveChannel = receiveChannel;
-            if (receiveChannel != ChannelAny) {
-                lastChannel = receiveChannel;
-            }
-            return 0;
-        }
-        return 1;
-    };
 
     //Sending Data
-    int sendNote (uint8_t note, uint8_t velocity, bool onOff) override {
+    RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff) override {
         //Check if values are 7Bit as the MIDI Standard requires
         if ((note >> 7) == 1)
-            return 1;
+            return FirstArgumentOutOfRange;
         if ((velocity >> 7) == 1)
-            return 2;
+            return SecondArgumentOutOfRange;
 
         //Create MIDI Data
         uint8_t dataToSend[3];
 
-        if (onOff == true) {
+        if (onOff == NoteOn) {
             dataToSend[0] = NoteOnCmd << 4 | sendChannel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
@@ -85,13 +66,13 @@ public:
         //Send MIDI Data
         this->sendMidiBytes (dataToSend, 3);
 
-        return 0;
+        return Success;
     };
 
 
-    int sendAftertouchEvent (uint8_t note, uint8_t velocity) override {
+    RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity) override {
         if ((velocity >> 7) == 1)
-            return 2;
+            return SecondArgumentOutOfRange;
 
         // check if it is a monophonic aftertouch
         if (note == MonophonicAftertouch) {
@@ -102,7 +83,7 @@ public:
         }
             // if not, check if the note is inside the range
         else if ((note >> 7) == 1)
-            return 1;
+            return FirstArgumentOutOfRange;
         else {
             uint8_t dataToSend[3];
             dataToSend[0] = PolyphonicAftertouchCmd << 4 | sendChannel;
@@ -111,15 +92,15 @@ public:
             this->sendMidiBytes (dataToSend, 3);
         }
 
-        return 0;
+        return Success;
     }
 
-    int sendControlChange (uint8_t control, uint8_t value) override {
+    RetValue sendControlChange (uint8_t control, uint8_t value) override {
         //Check if values are 7Bit as the MIDI Standard requires
         if ((control >> 7) == 1)
-            return 1;
+            return FirstArgumentOutOfRange;
         if ((value >> 7) == 1)
-            return 2;
+            return SecondArgumentOutOfRange;
 
         //Create MIDI Data
         uint8_t dataToSend[3];
@@ -130,14 +111,14 @@ public:
         //Send MIDI Data
         this->sendMidiBytes (dataToSend, 3);
 
-        return 0;
+        return Success;
     };
 
 
-    int sendProgramChange (uint8_t program) override {
+    RetValue sendProgramChange (uint8_t program) override {
         //Check if values are 7Bit as the MIDI Standard requires
         if ((program >> 7) == 1)
-            return 1;
+            return FirstArgumentOutOfRange;
 
         //Create MIDI Data
         uint8_t dataToSend[2];
@@ -147,11 +128,11 @@ public:
         //Send MIDI Data
         this->sendMidiBytes (dataToSend, 2);
 
-        return 0;
+        return Success;
     };
 
     // todo: check if this works as expected
-    int sendPitchBend (int16_t pitch) override {
+    RetValue sendPitchBend (int16_t pitch) override {
 
         // the input value is biased arround 0, so an offset has to be applied to get it into the range
         // from 0 - 2^14 as the "wire format" defines
@@ -159,9 +140,9 @@ public:
 
         // check if input is in range
         if (pitch > offset)
-            return 1;
+            return SecondArgumentOutOfRange;
         if (pitch < -offset)
-            return 2;
+            return SecondArgumentOutOfRange;
 
         // should be positive after this operation
         pitch += offset;
@@ -178,46 +159,42 @@ public:
 
         this->sendMidiBytes (dataToSend, 3);
 
-        return 0;
+        return Success;
 
     }
 
     //SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    int sendSysEx (const uint8_t *sysExBuffer, uint16_t length) override {
+    RetValue sendSysEx (const uint8_t *sysExBuffer, uint16_t length) override {
         if (sysExBuffer[0] == SysExBegin) {
-            sendMidiBytes ((uint8_t *) sysExBuffer, length);
-            return 0;
+            if (sysExBuffer[length - 1] == SysExEnd) {
+                sendMidiBytes ((uint8_t *) sysExBuffer, length);
+                return Success;
+            }
+            return MissingSysExEnd;
         }
-        return 1;
+        return MissingSysExStart;
     };
 
-    void sendMIDIClockTick () override {
-        uint8_t cmd = ClockTickCmd;
-        this->sendMidiBytes (&cmd, 1);
-    }
+    RetValue sendMIDITimecodeQuarterFrame (uint8_t quarterFrame) override {
+        //Check if values are 7Bit as the MIDI Standard requires
+        if ((quarterFrame >> 7) == 1)
+            return FirstArgumentOutOfRange;
 
-    void sendMIDIStart () override {
+        //Create MIDI Data
+        uint8_t dataToSend[2];
+        dataToSend[0] = MIDITimecodeQuarterFrame;
+        dataToSend[1] = quarterFrame;
 
-        uint8_t cmd = StartCmd;
-        this->sendMidiBytes (&cmd, 1);
-    }
+        //Send MIDI Data
+        this->sendMidiBytes (dataToSend, 2);
 
-    void sendMIDIStop () override {
+        return Success;
+    };
 
-        uint8_t cmd = StopCmd;
-        this->sendMidiBytes (&cmd, 1);
-    }
-
-    void sendMIDIContinue () override {
-
-        uint8_t cmd = ContinueCmd;
-        this->sendMidiBytes (&cmd, 1);
-    }
-
-    int sendMIDISongPositionPointer (uint16_t positionInBeats) override {
+    RetValue sendMIDISongPositionPointer (uint16_t positionInBeats) override {
         // positionInBeats has to be a 14 Bit int
         if ((positionInBeats >> 14) != 0) {
-            return 1;
+            return FirstArgumentOutOfRange;
         }
         // lower 7 bit
         const uint16_t lsb = positionInBeats & 0x7F;
@@ -231,8 +208,59 @@ public:
 
         this->sendMidiBytes (dataToSend, 3);
 
-        return 0;
-    }
+        return Success;
+    };
+
+    RetValue sendSongSelect (uint8_t songToSelect) override {
+        //Check if values are 7Bit as the MIDI Standard requires
+        if ((songToSelect >> 7) == 1)
+            return FirstArgumentOutOfRange;
+
+        //Create MIDI Data
+        uint8_t dataToSend[2];
+        dataToSend[0] = SongSelectCmd;
+        dataToSend[1] = songToSelect;
+
+        //Send MIDI Data
+        this->sendMidiBytes (dataToSend, 2);
+
+        return Success;
+    };
+
+    void sendTuneRequest() override {
+        uint8_t cmd = TuneRequest;
+        sendMidiBytes (&cmd, 1);
+    };
+
+    void sendMIDIClockTick() override {
+        uint8_t cmd = ClockTickCmd;
+        this->sendMidiBytes (&cmd, 1);
+    };
+
+    void sendMIDIStart() override {
+        uint8_t cmd = StartCmd;
+        this->sendMidiBytes (&cmd, 1);
+    };
+
+    void sendMIDIStop() override {
+        uint8_t cmd = StopCmd;
+        this->sendMidiBytes (&cmd, 1);
+    };
+
+    void sendMIDIContinue() override {
+        uint8_t cmd = ContinueCmd;
+        this->sendMidiBytes (&cmd, 1);
+    };
+
+    void sendActiveSense() override {
+        uint8_t cmd = ActiveSense;
+        sendMidiBytes (&cmd, 1);
+    };
+
+    void sendReset() override {
+        uint8_t cmd = MIDIReset;
+        sendMidiBytes (&cmd, 1);
+    };
 
 protected:
     // Everything describing the "physical" MIDI device
@@ -247,8 +275,6 @@ protected:
     char buffer[1024];
     MIDIPacketList *pktList;
     MIDIPacket *pkt;
-    Channel sendChannel = Channel1;
-    Channel receiveChannel = ChannelAny;
 
     int sendMidiBytes (uint8_t *bytesToSend, int length) {
         //Initialize Packetlist
@@ -268,7 +294,7 @@ protected:
         // The connRefCon pointer is the pointer was handed to the MIDIPortConnectSource function call when setting up the connection.
         // As we passed a "this" pointer back then, this now can be used to call the member function of the right class Instance if there
         // are multiple connections established
-        CoreMIDIWrapperDef *callbackDestination = (CoreMIDIWrapperDef *) connRefCon;
+        CoreMIDIWrapper *callbackDestination = (CoreMIDIWrapper *) connRefCon;
 
         MIDIPacket *packet = (MIDIPacket *) newPackets->packet;
         int packetCount = newPackets->numPackets;
