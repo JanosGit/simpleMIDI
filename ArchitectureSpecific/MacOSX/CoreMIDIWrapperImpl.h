@@ -9,7 +9,7 @@
 #define coreMidiWrapper_mm
 
 #include "CoreMIDIWrapperDef.h"
-#include "simpleMIDI.h"
+#include "../../simpleMIDI.h"
 
 
 class CoreMIDIWrapper : public SimpleMIDI {
@@ -17,7 +17,7 @@ class CoreMIDIWrapper : public SimpleMIDI {
 public:
 
 
-    CoreMIDIWrapper (const CoreMIDIDeviceRessource &selectedDevice) {
+    CoreMIDIWrapper (CoreMIDIDeviceRessource &selectedDevice) {
         entity = MIDIDeviceGetEntity (selectedDevice.deviceRef, 0);
         source = MIDIEntityGetSource (entity, 0);
         destination = MIDIEntityGetDestination (entity, 0);
