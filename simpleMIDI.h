@@ -324,8 +324,11 @@ class SimpleMIDI {
 
 
 #ifdef SIMPLE_MIDI_MAC
-    typedef CoreMIDIDeviceRessource HardwareRessource;
+    typedef CoreMIDIDeviceRessource HardwareResource;
     typedef CoreMIDIWrapper PlatformSpecificImplementation;
+#elif defined SIMPLE_MIDI_ARDUINO
+    typedef ArduinoSerialMIDIWrapper PlatformSpecificImplementation;
+    typedef ArduinoSerialMIDIWrapper ForArduino; // an alternative, easier to understand declaration for Arduino users
 #endif
 
 
@@ -455,7 +458,6 @@ private:
 
 #elif defined SIMPLE_MIDI_ARDUINO
 #include "ArchitectureSpecific/Arduino/ArduinoSerialMIDIWrapperImpl.h"
-    typedef SerialMIDIWrapper SimpleMIDI;
 
 #else
 #error "Unknown Plattfom for SimpleMIDI"

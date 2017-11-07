@@ -3,19 +3,46 @@
 
 #include "ArduinoSerialMIDIWrapperDef.h"
 #include "HardwareSerial.h"
-#include "simpleMIDI.h"
+#include <simpleMIDI.h>
+#include <SoftwareSerial.h>
 
 class ArduinoSerialMIDIWrapper : public SimpleMIDI {
 
 public:
 
-    ArduinoSerialMIDIWrapper (const ArduinoSerialMIDIDeviceRessource &selectedDevice) : SerialInterface (selectedDevice), header (midiDataBuffer[0]) {
+    ArduinoSerialMIDIWrapper (HardwareSerial& selectedDevice) : SerialInterface (selectedDevice), header (midiDataBuffer[0]) {
 
-        SerialInterface.begin (31250);
+        selectedDevice.begin (31250);
+        serialInterfaceType = HardwareSerialInterface;
     }
 
+    ArduinoSerialMIDIWrapper (SoftwareSerial& selectedDevice) : SerialInterface (selectedDevice), header (midiDataBuffer[0]) {
+
+        selectedDevice.begin (31250);
+        serialInterfaceType = SoftwareSerialInterface;
+    }
+
+
     ~ArduinoSerialMIDIWrapper() {
-        SerialInterface.end();
+
+        // This is a bit ugly, but I found no other way to do this.
+
+        switch (serialInterfaceType) {
+            case HardwareSerialInterface: {
+                HardwareSerial *downcastedInterface = (HardwareSerial*)&SerialInterface;
+                downcastedInterface->end();
+            }
+                break;
+
+            case SoftwareSerialInterface: {
+                SoftwareSerial *downcastedInterface = (SoftwareSerial*)&SerialInterface;
+                downcastedInterface->end();
+            }
+                break;
+
+        }
+
+
     }
 
     /**
@@ -37,9 +64,9 @@ public:
                 if (header >= 0b10000000){
                     // in this case it's really a midi header
 
-                    if ((header & 0b11100000) = 0b11000000) {
+                    if ((header & 0b11100000) == 0b11000000) {
                         // in this case its a 4-Bit command and one byte is expected
-                        lastChannel = header & 0b00001111;
+                        lastChannel = (SimpleMIDI::Channel)(header & 0b00001111);
                         uint8_t command = header >> 4;
                         if ((receiveChannel == ChannelAny) || (receiveChannel == lastChannel)) {
                             numBytesToWaitFor = 1;
@@ -62,7 +89,7 @@ public:
                         }
 
                     }
-                    else if ((header & 0b11110000) = 0b11110000) {
+                    else if ((header & 0b11110000) == 0b11110000) {
                         // in this case it's a 8-Bit command
 
                         switch (header) {
@@ -124,7 +151,7 @@ public:
                     }
                     else {
                         // in this case its a 4-Bit command and two bytes are expected
-                        lastChannel = header & 0b00001111;
+                        lastChannel = (SimpleMIDI::Channel)(header & 0b00001111);
                         uint8_t command = header >> 4;
                         if ((receiveChannel == ChannelAny) || (receiveChannel == lastChannel)) {
                             numBytesToWaitFor = 2;
@@ -382,7 +409,12 @@ public:
 private:
 
     // The Serial interface used for physical MIDI I/O
-    const ArduinoSerialMIDIDeviceRessource &SerialInterface;
+    ArduinoSerialMIDIDeviceRessource &SerialInterface;
+    enum InterfaceType : uint8_t {
+        HardwareSerialInterface,
+        SoftwareSerialInterface
+    };
+    InterfaceType serialInterfaceType;
 
     // Everything needed to handle the incoming data
     static const int midiDataBufferSize = 256;
@@ -396,7 +428,7 @@ private:
     // the parsing shouldn't be repeated when all bytes are there to find the appropriate
     // handler member function, a function pointer to one of these event handlers is stored
     // to directly invoke the handler function when the message is complete
-    typedef void (EventHandler)(ArduinoSerialMIDIWrapper*);
+    typedef void (*EventHandler)(ArduinoSerialMIDIWrapper*);
     EventHandler eventHandler = nullptr;
 
     static void noteOnEventHandler (ArduinoSerialMIDIWrapper *ref) {
