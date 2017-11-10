@@ -73,13 +73,13 @@ public:
                 downcastedInterface->begin (31250);
             }
                 break;
-/*
+#ifndef SIMPLE_MIDI_ARDUINO_NO_SOFT_SERIAL
             case SoftwareSerialInterface: {
                 SoftwareSerial *downcastedInterface = (SoftwareSerial*)&serialInterface;
                 downcastedInterface->begin (31250);
             }
                 break;
-                */
+#endif
         }
     }
 
