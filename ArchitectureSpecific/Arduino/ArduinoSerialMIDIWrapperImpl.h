@@ -4,45 +4,83 @@
 #include "ArduinoSerialMIDIWrapperDef.h"
 #include "HardwareSerial.h"
 #include <simpleMIDI.h>
+
+#ifndef SIMPLE_MIDI_ARDUINO_NO_SOFT_SERIAL
 #include <SoftwareSerial.h>
+#endif
+
 
 class ArduinoSerialMIDIWrapper : public SimpleMIDI {
 
 public:
 
-    ArduinoSerialMIDIWrapper (HardwareSerial& selectedDevice) : SerialInterface (selectedDevice), header (midiDataBuffer[0]) {
+    ArduinoSerialMIDIWrapper (HardwareSerial& selectedDevice) : serialInterface (selectedDevice), header (midiDataBuffer[0]) {
 
-        selectedDevice.begin (31250);
         serialInterfaceType = HardwareSerialInterface;
+
+#ifdef SIMPLE_MIDI_PRE_C++11
+        sendChannel = Channel1;
+        receiveChannel = ChannelAny;
+#endif
+
+        numBytesInMidiDataBuffer = 0;
+        numBytesToWaitFor = 0;
+
     }
+#ifndef SIMPLE_MIDI_ARDUINO_NO_SOFT_SERIAL
+    ArduinoSerialMIDIWrapper (SoftwareSerial& selectedDevice) : serialInterface (selectedDevice), header (midiDataBuffer[0]) {
 
-    ArduinoSerialMIDIWrapper (SoftwareSerial& selectedDevice) : SerialInterface (selectedDevice), header (midiDataBuffer[0]) {
-
-        selectedDevice.begin (31250);
         serialInterfaceType = SoftwareSerialInterface;
+
+#ifdef SIMPLE_MIDI_PRE_C++11
+        sendChannel = Channel1;
+        receiveChannel = ChannelAny;
+#endif
+
+        numBytesInMidiDataBuffer = 0;
+        numBytesToWaitFor = 0;
+
     }
+#endif
 
 
     ~ArduinoSerialMIDIWrapper() {
 
         // This is a bit ugly, but I found no other way to do this.
-
         switch (serialInterfaceType) {
             case HardwareSerialInterface: {
-                HardwareSerial *downcastedInterface = (HardwareSerial*)&SerialInterface;
+                HardwareSerial *downcastedInterface = (HardwareSerial*)&serialInterface;
                 downcastedInterface->end();
             }
                 break;
-
+#ifndef SIMPLE_MIDI_ARDUINO_NO_SOFT_SERIAL
             case SoftwareSerialInterface: {
-                SoftwareSerial *downcastedInterface = (SoftwareSerial*)&SerialInterface;
+                SoftwareSerial *downcastedInterface = (SoftwareSerial*)&serialInterface;
                 downcastedInterface->end();
             }
                 break;
-
+#endif
         }
+    }
 
-
+    /**
+     * Call this during setup. Before calling begin() no MIDI I/O will take place
+     */
+    void begin() {
+        switch (serialInterfaceType) {
+            case HardwareSerialInterface: {
+                HardwareSerial *downcastedInterface = (HardwareSerial*)&serialInterface;
+                downcastedInterface->begin (31250);
+            }
+                break;
+/*
+            case SoftwareSerialInterface: {
+                SoftwareSerial *downcastedInterface = (SoftwareSerial*)&serialInterface;
+                downcastedInterface->begin (31250);
+            }
+                break;
+                */
+        }
     }
 
     /**
@@ -51,13 +89,14 @@ public:
      */
     void receive() {
 
-        auto numBytesAvailable = SerialInterface.available();
+        uint16_t numBytesAvailable = serialInterface.available();
 
         while (numBytesAvailable) {
+            digitalWrite(6, LOW);
 
             if (numBytesToWaitFor == 0) {
                 // waiting for the next message
-                midiDataBuffer[0] = SerialInterface.read();
+                midiDataBuffer[0] = serialInterface.read();
                 numBytesInMidiDataBuffer = 1;
                 numBytesAvailable--;
 
@@ -188,7 +227,8 @@ public:
 
                 // Waiting for all kinds of 1 or 2 Byte messages
             else if (numBytesToWaitFor > 0) {
-                midiDataBuffer[numBytesInMidiDataBuffer] = SerialInterface.read();
+
+                midiDataBuffer[numBytesInMidiDataBuffer] = serialInterface.read();
                 numBytesToWaitFor--;
                 if (numBytesToWaitFor == 0) {
                     // when all bytes are read, invoke the event handler
@@ -203,7 +243,7 @@ public:
                 // waiting for a SysEx to complete. With each byte received the negative numBytesToWaitFor value
                 // is decreased by one
             else {
-                midiDataBuffer[-numBytesToWaitFor] = SerialInterface.read();
+                midiDataBuffer[-numBytesToWaitFor] = serialInterface.read();
                 if (midiDataBuffer[-numBytesToWaitFor] == SysExEnd) {
                     // now the end of a SysEx was reached
                     numBytesToWaitFor--;
@@ -222,6 +262,8 @@ public:
             }
 
         }
+
+        digitalWrite(6, HIGH);
     }
 
 
@@ -231,75 +273,93 @@ public:
      */
     virtual void droppedSysExBuffer() {};
 
-    RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff) override {
+    // had to remove all "override" statements due to old c++ compiler compatibility
+
+    inline RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff) {
+        return sendNote (note, velocity, onOff, sendChannel);
+    };
+
+    RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff, Channel channel) { //override
         //Create MIDI Data
         uint8_t dataToSend[3];
 
         if (onOff == NoteOn) {
-            dataToSend[0] = NoteOnCmd << 4 | sendChannel;
+            dataToSend[0] = NoteOnCmd << 4 | channel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
         } else {
-            dataToSend[0] = NoteOffCmd << 4 | sendChannel;
+            dataToSend[0] = NoteOffCmd << 4 | channel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
         }
 
-        SerialInterface.write (dataToSend, 3);
+        serialInterface.write (dataToSend, 3);
 
         return NoErrorCheckingForSpeedReasons;
     };
 
-    RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity) override {
+    inline RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity) {
+        return sendAftertouchEvent (note, velocity, sendChannel);
+    };
+
+    RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity, Channel channel) { //override
 
         // check if it is a monophonic aftertouch
         if (note == MonophonicAftertouch) {
             uint8_t dataToSend[2];
-            dataToSend[0] = MonophonicAftertouchCmd << 4 | sendChannel;
+            dataToSend[0] = MonophonicAftertouchCmd << 4 | channel;
             dataToSend[1] = velocity;
-            SerialInterface.write (dataToSend, 2);
+            serialInterface.write (dataToSend, 2);
         }
 
         else {
             uint8_t dataToSend[3];
-            dataToSend[0] = PolyphonicAftertouchCmd << 4 | sendChannel;
+            dataToSend[0] = PolyphonicAftertouchCmd << 4 | channel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
-            SerialInterface.write (dataToSend, 3);
+            serialInterface.write (dataToSend, 3);
         }
 
         return NoErrorCheckingForSpeedReasons;
     };
 
-    RetValue sendControlChange (uint8_t control, uint8_t value) override {
+    inline RetValue sendControlChange (uint8_t control, uint8_t value) {
+        return sendControlChange (control, value, sendChannel);
+    };
+
+    RetValue sendControlChange (uint8_t control, uint8_t value, Channel channel) { // override
 
         //Create MIDI Data
         uint8_t dataToSend[3];
-        dataToSend[0] = ControlChangeCmd << 4 | sendChannel;
+        dataToSend[0] = ControlChangeCmd << 4 | channel;
         dataToSend[1] = control;
         dataToSend[2] = value;
 
         //Send MIDI Data
-        SerialInterface.write (dataToSend, 3);
+        serialInterface.write (dataToSend, 3);
 
         return NoErrorCheckingForSpeedReasons;
     };
 
-    RetValue sendProgramChange (uint8_t program) override {
+    inline RetValue sendProgramChange (uint8_t program) {
+        return sendProgramChange (program, sendChannel);
+    };
+
+    RetValue sendProgramChange (uint8_t program, Channel channel) { // override
 
         //Create MIDI Data
         uint8_t dataToSend[2];
-        dataToSend[0] = ProgrammChangeCmd << 4 | sendChannel;
+        dataToSend[0] = ProgrammChangeCmd << 4 | channel;
         dataToSend[1] = program;
 
         //Send MIDI Data
-        SerialInterface.write (dataToSend, 2);
+        serialInterface.write (dataToSend, 2);
 
         return NoErrorCheckingForSpeedReasons;
     };
 
     // todo: check if this works as expected
-    RetValue sendPitchBend (int16_t pitch) override {
+    RetValue sendPitchBend (int16_t pitch) { // override
 
         // the input value is biased arround 0, so an offset has to be applied to get it into the range
         // from 0 - 2^14 as the "wire format" defines
@@ -318,16 +378,16 @@ public:
         dataToSend[1] = lsb;
         dataToSend[2] = msb;
 
-        SerialInterface.write (dataToSend, 3);
+        serialInterface.write (dataToSend, 3);
 
         return NoErrorCheckingForSpeedReasons;
     };
 
     //SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    RetValue sendSysEx (const uint8_t *sysExBuffer, uint16_t length) override {
+    RetValue sendSysEx (const uint8_t *sysExBuffer, uint16_t length) { // override
         if (sysExBuffer[0] == SysExBegin) {
             if (sysExBuffer[length - 1] == SysExEnd) {
-                SerialInterface.write (sysExBuffer, length);
+                serialInterface.write (sysExBuffer, length);
                 return Success;
             }
             return MissingSysExEnd;
@@ -335,7 +395,7 @@ public:
         return MissingSysExStart;
     };
 
-    RetValue sendMIDITimecodeQuarterFrame (uint8_t quarterFrame) override {
+    RetValue sendMIDITimecodeQuarterFrame (uint8_t quarterFrame) { // override
 
         //Create MIDI Data
         uint8_t dataToSend[2];
@@ -343,12 +403,12 @@ public:
         dataToSend[1] = quarterFrame;
 
         //Send MIDI Data
-        SerialInterface.write (dataToSend, 2);
+        serialInterface.write (dataToSend, 2);
 
         return NoErrorCheckingForSpeedReasons;
     };
 
-    RetValue sendMIDISongPositionPointer (uint16_t positionInBeats) override {
+    RetValue sendMIDISongPositionPointer (uint16_t positionInBeats) { // override
 
         // lower 7 bit
         const uint16_t lsb = positionInBeats & 0x7F;
@@ -360,12 +420,12 @@ public:
         dataToSend[1] = lsb;
         dataToSend[2] = msb;
 
-        SerialInterface.write (dataToSend, 3);
+        serialInterface.write (dataToSend, 3);
 
         return NoErrorCheckingForSpeedReasons;
     };
 
-    RetValue sendSongSelect (uint8_t songToSelect) override {
+    RetValue sendSongSelect (uint8_t songToSelect) { // override
 
         //Create MIDI Data
         uint8_t dataToSend[2];
@@ -373,43 +433,43 @@ public:
         dataToSend[1] = songToSelect;
 
         //Send MIDI Data
-        SerialInterface.write (dataToSend, 2);
+        serialInterface.write (dataToSend, 2);
 
         return NoErrorCheckingForSpeedReasons;
     };
 
-    void sendTuneRequest() override {
-        SerialInterface.write (TuneRequest);
+    void sendTuneRequest() { // override
+        serialInterface.write (TuneRequest);
     };
 
-    void sendMIDIClockTick() override {
-        SerialInterface.write (ClockTickCmd);
+    void sendMIDIClockTick() { // override
+        serialInterface.write (ClockTickCmd);
     };
 
-    void sendMIDIStart() override {
-        SerialInterface.write (StartCmd);
+    void sendMIDIStart() { // override
+        serialInterface.write (StartCmd);
     };
 
-    void sendMIDIStop() override {
-        SerialInterface.write (StopCmd);
+    void sendMIDIStop() { // override
+        serialInterface.write (StopCmd);
     };
 
-    void sendMIDIContinue() override {
-        SerialInterface.write (ContinueCmd);
+    void sendMIDIContinue() { // override
+        serialInterface.write (ContinueCmd);
     };
 
-    void sendActiveSense() override {
-        SerialInterface.write (ActiveSense);
+    void sendActiveSense() { // override
+        serialInterface.write (ActiveSense);
     };
 
-    void sendReset() override {
-        SerialInterface.write (MIDIReset);
+    void sendReset() { // override
+        serialInterface.write (MIDIReset);
     }
 
 private:
 
     // The Serial interface used for physical MIDI I/O
-    ArduinoSerialMIDIDeviceRessource &SerialInterface;
+    ArduinoSerialMIDIDeviceRessource &serialInterface;
     enum InterfaceType : uint8_t {
         HardwareSerialInterface,
         SoftwareSerialInterface
@@ -419,9 +479,9 @@ private:
     // Everything needed to handle the incoming data
     static const int midiDataBufferSize = 256;
     uint8_t midiDataBuffer[midiDataBufferSize];
-    uint8_t numBytesInMidiDataBuffer = 0;
+    uint8_t numBytesInMidiDataBuffer;
     const uint8_t &header;
-    int8_t numBytesToWaitFor = 0;
+    int8_t numBytesToWaitFor;
 
     // When a midi command is received, the header is parsed to find out which kind of
     // midi message came in. If the message still needs additional bytes to finish, but
@@ -429,7 +489,7 @@ private:
     // handler member function, a function pointer to one of these event handlers is stored
     // to directly invoke the handler function when the message is complete
     typedef void (*EventHandler)(ArduinoSerialMIDIWrapper*);
-    EventHandler eventHandler = nullptr;
+    EventHandler eventHandler;
 
     static void noteOnEventHandler (ArduinoSerialMIDIWrapper *ref) {
         ref->receivedNote (ref->midiDataBuffer[1], ref->midiDataBuffer[2], NoteOn);
