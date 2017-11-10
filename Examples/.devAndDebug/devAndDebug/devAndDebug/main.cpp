@@ -73,7 +73,7 @@ int main() {
     
     
     // Seach for connected devices
-    const std::vector<SimpleMIDI::HardwareRessource> connectedDevices = searchMIDIDevices();
+    std::vector<SimpleMIDI::HardwareResource> connectedDevices = searchMIDIDevices();
     
     
     
@@ -100,7 +100,7 @@ int main() {
     
     
     // The class encapsulating all MIDI action
-    MyDerivedMIDIClass midiInterface(connectedDevices[selectedDevice]);
+    MyDerivedMIDIClass midiInterface (connectedDevices[selectedDevice]);
     
     // Tell the midiInterface instance which device it should represent from now on
     // midiInterface.selectDevice (&connectedDevices[selectedDevice]);
@@ -113,7 +113,7 @@ int main() {
     // Listen to all incomming MIDI channels
     midiInterface.setReceiveChannel(SimpleMIDI::ChannelAny);
     
-    
+
     
     //Send some random Data
     midiInterface.sendNote (0x23, 0x34, true);
@@ -121,8 +121,6 @@ int main() {
     midiInterface.sendProgramChange (8);
     uint8_t testSysEx[12] = {SimpleMIDI::SysExBegin, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SimpleMIDI::SysExEnd};
     midiInterface.sendSysEx (testSysEx, 12);
-    
-    
     
     //wait for incomming MIDI data or the users exit command
     bool running = true;

@@ -86,9 +86,13 @@ class SimpleMIDI {
 
     // send MIDI Messages
     virtual RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff) = 0;
-    virtual RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity) = 0;
+    virtual RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff, Channel channel) = 0;
+    virtual RetValue sendAftertouchEvent (uint8_t note, uint8_t velucity) = 0;
+    virtual RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity, Channel channel) = 0;
     virtual RetValue sendControlChange (uint8_t control, uint8_t value) = 0;
+    virtual RetValue sendControlChange (uint8_t control, uint8_t value, Channel channel) = 0;
     virtual RetValue sendProgramChange (uint8_t program) = 0;
+    virtual RetValue sendProgramChange (uint8_t program, Channel channel) = 0;
     virtual RetValue sendPitchBend (int16_t pitch) = 0;
     // !! SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
     virtual RetValue sendSysEx (const uint8_t *sysExBuffer, uint16_t length) = 0;
@@ -104,6 +108,11 @@ class SimpleMIDI {
     virtual void sendReset() = 0;
 
 
+    /**
+     * Sets the channel all outgoing messages that use a channel (note, aftertouch, control change, program change
+     * and pitch bend) use if they are called without a channel argument.
+     * @return  true if the channel was inside the valid range, false otherwise
+     */
     bool setSendChannel (Channel sendChannel) {
         if (sendChannel > Channel16) {
             return false;
@@ -112,7 +121,26 @@ class SimpleMIDI {
         return true;
     };
 
+    /**
+     * Returns the channel that all outgoing messages are sent to if no channel is provided with the call.
+     */
+    Channel getSendChannel() {
 
+        return sendChannel;
+    }
+
+
+    /**
+     * Sets the channel all incomming messages that use a channel (note, aftertouch, control change, program change
+     * and pitch bend) react to. If you set a particular receive channel here, messages from a different channel
+     * will simply be ignored and won't invoke any callback. If you want to react to messages from all channels
+     * set it to ChannelAny. This is also the default value. In this case a call to getMostRecentSourceChannel will
+     * return the channel of the last message that came in.
+     *
+     * @return  true if the channel was inside the valid range, false otherwise
+     *
+     * @see getMostRecentSourceChannel
+     */
     bool setReceiveChannel (Channel receiveChannel) {
 
         if (receiveChannel <= ChannelAny) {
@@ -124,6 +152,29 @@ class SimpleMIDI {
         }
         return false;
     };
+
+    /**
+     * Returns the channel that's currently used for receiving. In case of ChannelAny getMostRecentSourceChannel() could
+     * be helpful.
+     *
+     * @see getMostRecentSourceChannel
+     */
+    Channel getReceiveChannel() {
+
+        return receiveChannel;
+    }
+
+    /**
+     * Returns the channel the last incomming message that used a channel (note, aftertouch, control change, program change
+     * and pitch bend) was sent from. The main usage of this function is when you want to determine where a message came
+     * from when the receive channel is set to ChannelAny. If you need this information, it's a good idea to call this
+     * right at the beginning of the receivedXYZ() callback.
+     *
+     * @see getReceiveChannel
+     */
+    Channel getMostRecentSourceChannel() {
+        return lastChannel;
+    }
     
     // ----------- These member functions handling incomming data are needed to be implemented by the user --------
     // ----------- They are called from the architecture specific implementation if incomming data is available ---
@@ -252,35 +303,6 @@ class SimpleMIDI {
      * @param numBytesAvailable Size of the dataBuffer
      */
     virtual void receivedUnknownCommand (uint8_t *dataBuffer, int numBytesAvailable){};
-    
-    // ---------- If simpleMIDI::ChannelAny is used as the receive channel, these functions will be called --------
-    // ---------- As you see, they just call the standard receive functions and store the channel they came from. -
-    // ---------- The user can obtain them by calling getMostRecentSourceChannel(), however, the user -------------
-    // ---------- might also override these functions and catch the channel directly ------------------------------
-    void receivedNoteWithChannel (uint8_t note, uint8_t velocity, bool onOff, Channel channel) {
-        lastChannel = channel;
-        receivedNote (note, velocity, onOff);
-    }
-    void receivedAftertouchWithChannel (uint8_t note, uint8_t velocity, Channel channel) {
-        lastChannel = channel;
-        receivedAftertouch(note, velocity);
-    }
-    void receivedControlChangeWithChannel (uint8_t control, uint8_t value, Channel channel) {
-        lastChannel = channel;
-        receivedControlChange (control, value);
-    }
-    void receivedProgramChangeWithChannel (uint8_t programm, Channel channel){
-        lastChannel = channel;
-        receivedProgramChange (programm);
-    }
-    void receivedPitchBendWithChannel (int16_t pitch, Channel channel) {
-        lastChannel = channel;
-        receivedPitchBend (pitch);
-    }
-    
-    const Channel getMostRecentSourceChannel() {
-        return lastChannel;
-    }
 
     /**
      * Handy helper function to convert a MIDI value ranging from 0 - 127 (e.g. controller value, velocity)
@@ -334,8 +356,15 @@ class SimpleMIDI {
 
 protected:
     Channel lastChannel;
+
+#ifdef SIMPLE_MIDI_PRE_C++11
+    // in this case these will be initialized in the derived class' constructor
+    Channel sendChannel;
+    Channel receiveChannel;
+#else
     Channel sendChannel = Channel1;
     Channel receiveChannel = ChannelAny;
+#endif
     
 };
 

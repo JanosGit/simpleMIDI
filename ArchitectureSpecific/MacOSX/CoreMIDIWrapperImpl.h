@@ -43,7 +43,11 @@ public:
 
 
     //Sending Data
-    RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff) override {
+    inline RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff) {
+        return sendNote (note, velocity, onOff, sendChannel);
+    };
+
+    RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff, Channel channel) override {
         //Check if values are 7Bit as the MIDI Standard requires
         if ((note >> 7) == 1)
             return FirstArgumentOutOfRange;
@@ -54,11 +58,11 @@ public:
         uint8_t dataToSend[3];
 
         if (onOff == NoteOn) {
-            dataToSend[0] = NoteOnCmd << 4 | sendChannel;
+            dataToSend[0] = NoteOnCmd << 4 | channel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
         } else {
-            dataToSend[0] = NoteOffCmd << 4 | sendChannel;
+            dataToSend[0] = NoteOffCmd << 4 | channel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
         }
@@ -69,15 +73,18 @@ public:
         return Success;
     };
 
+    inline RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity) {
+        return sendAftertouchEvent (note, velocity, sendChannel);
+    };
 
-    RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity) override {
+    RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity, Channel channel) override {
         if ((velocity >> 7) == 1)
             return SecondArgumentOutOfRange;
 
         // check if it is a monophonic aftertouch
         if (note == MonophonicAftertouch) {
             uint8_t dataToSend[2];
-            dataToSend[0] = MonophonicAftertouchCmd << 4 | sendChannel;
+            dataToSend[0] = MonophonicAftertouchCmd << 4 | channel;
             dataToSend[1] = velocity;
             this->sendMidiBytes (dataToSend, 2);
         }
@@ -86,16 +93,20 @@ public:
             return FirstArgumentOutOfRange;
         else {
             uint8_t dataToSend[3];
-            dataToSend[0] = PolyphonicAftertouchCmd << 4 | sendChannel;
+            dataToSend[0] = PolyphonicAftertouchCmd << 4 | channel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
             this->sendMidiBytes (dataToSend, 3);
         }
 
         return Success;
-    }
+    };
 
-    RetValue sendControlChange (uint8_t control, uint8_t value) override {
+    inline RetValue sendControlChange (uint8_t control, uint8_t value) {
+        return sendControlChange (control, value, sendChannel);
+    };
+
+    RetValue sendControlChange (uint8_t control, uint8_t value, Channel channel) override {
         //Check if values are 7Bit as the MIDI Standard requires
         if ((control >> 7) == 1)
             return FirstArgumentOutOfRange;
@@ -104,7 +115,7 @@ public:
 
         //Create MIDI Data
         uint8_t dataToSend[3];
-        dataToSend[0] = ControlChangeCmd << 4 | sendChannel;
+        dataToSend[0] = ControlChangeCmd << 4 | channel;
         dataToSend[1] = control;
         dataToSend[2] = value;
 
@@ -114,15 +125,18 @@ public:
         return Success;
     };
 
+    inline RetValue sendProgramChange (uint8_t program) {
+        return sendProgramChange (program, sendChannel);
+    };
 
-    RetValue sendProgramChange (uint8_t program) override {
+    RetValue sendProgramChange (uint8_t program, Channel channel) override {
         //Check if values are 7Bit as the MIDI Standard requires
         if ((program >> 7) == 1)
             return FirstArgumentOutOfRange;
 
         //Create MIDI Data
         uint8_t dataToSend[2];
-        dataToSend[0] = ProgrammChangeCmd << 4 | sendChannel;
+        dataToSend[0] = ProgrammChangeCmd << 4 | channel;
         dataToSend[1] = program;
 
         //Send MIDI Data
@@ -320,6 +334,28 @@ protected:
             } else {
                 // process 8 Bit Commands
                 switch (messageHeader) {
+                    case MIDITimecodeQuarterFrame:
+                        callbackDestination->receivedMIDITimecodeQuarterFrame (packet->data[1]);
+                        break;
+
+                    case SongPositionPointerCmd: {
+                        // take the msb and shift it up
+                        uint16_t positionInBeats = packet->data[2];
+                        positionInBeats <<= 7;
+                        // add the lsb
+                        positionInBeats &= packet->data[1];
+                        callbackDestination->receivedSongPositionPointer (positionInBeats);
+                    }
+                        break;
+
+                    case SongSelectCmd:
+                        callbackDestination->receivedSongSelect (packet->data[1]);
+                        break;
+
+                    case TuneRequest:
+                        callbackDestination->receivedTuneRequest();
+                        break;
+
                     case ClockTickCmd:
                         callbackDestination->receivedMIDIClockTick ();
                         break;
@@ -336,14 +372,12 @@ protected:
                         callbackDestination->receivedMIDIContinue ();
                         break;
 
-                    case SongPositionPointerCmd: {
-                        // take the msb and shift it up
-                        uint16_t positionInBeats = packet->data[2];
-                        positionInBeats <<= 7;
-                        // add the lsb
-                        positionInBeats &= packet->data[1];
-                        callbackDestination->receivedSongPositionPointer (positionInBeats);
-                    }
+                    case ActiveSense:
+                        callbackDestination->receivedActiveSense();
+                        break;
+
+                    case MIDIReset:
+                        callbackDestination->receivedMIDIReset();
                         break;
 
                     default: {
@@ -352,41 +386,10 @@ protected:
                         uint8_t midiCommand = messageHeader >> 4;
 
 
-                        if (callbackDestination->receiveChannel == ChannelAny) {
 
-                            switch (midiCommand) {
-                                case NoteOnCmd:
-                                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOn, (Channel) midiChannel);
-                                    break;
+                        if ((callbackDestination->receiveChannel == midiChannel) || (callbackDestination->receiveChannel == ChannelAny)) {
 
-                                case NoteOffCmd:
-                                    callbackDestination->receivedNoteWithChannel (packet->data[1], packet->data[2], NoteOff, (Channel) midiChannel);
-                                    break;
-
-                                case PolyphonicAftertouchCmd:
-                                    callbackDestination->receivedAftertouchWithChannel (packet->data[1], packet->data[2], (Channel) midiChannel);
-                                    break;
-
-                                case MonophonicAftertouchCmd:
-                                    callbackDestination->receivedAftertouchWithChannel (MonophonicAftertouch, packet->data[1], (Channel) midiChannel);
-
-                                case ControlChangeCmd:
-                                    callbackDestination->receivedControlChangeWithChannel (packet->data[1], packet->data[2], (Channel) midiChannel);
-                                    break;
-
-                                case ProgrammChangeCmd:
-                                    callbackDestination->receivedProgramChangeWithChannel (packet->data[1], (Channel) midiChannel);
-                                    break;
-
-                                case PitchBendCmd:
-                                    callbackDestination->receivedPitchBendWithChannel (packet->data[1], (Channel) midiChannel);
-                                    break;
-
-                                default:
-                                    callbackDestination->receivedUnknownCommand (packet->data, packet->length);
-                                    break;
-                            }
-                        } else if (callbackDestination->receiveChannel == midiChannel) {
+                            callbackDestination->lastChannel = (Channel)midiChannel;
 
                             switch (midiCommand) {
                                 case NoteOnCmd:
