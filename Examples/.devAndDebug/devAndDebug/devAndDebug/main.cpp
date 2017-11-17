@@ -26,46 +26,101 @@ public:
     // override all four "received..." member functions. Make sure to mark all of them with the override keyword
     void receivedNote (uint8_t note, uint8_t velocity, bool noteOn) override {
         if (noteOn) {
-            std::cout << "Received note on  0x"
-            << std::hex << std::setfill('0') << std::setw(2) << (int)note
-            << " with velocity 0x"
-            << std::hex << std::setfill('0') << std::setw(2) << (int)velocity
+            std::cout << "Received note on " << (int)note
+            << " with velocity " << (int)velocity
             << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
             << std::endl;
         }
         else {
-            std::cout << "Received note off 0x"
-            << std::hex << std::setfill('0') << std::setw(2) << (int)note
-            << " with velocity 0x"
-            << std::hex << std::setfill('0') << std::setw(2) << (int)velocity
+            std::cout << "Received note off " << (int)note
+            << " with velocity " << (int)velocity
             << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
             << std::endl;
             
         }
     };
-    
-    void receivedControlChange (uint8_t control, uint8_t value) override {
-        std::cout << "Received control change 0x"
-        << std::hex << std::setfill('0') << std::setw(2) << (int)control
-        << " with value 0x"
-        << std::hex << std::setfill('0') << std::setw(2) << (int)value
-        << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
-        << std::endl;
-    };
-    
-    void receivedProgramChange (uint8_t programm) override {
-        std::cout << "Received programm change to programm " << (int)programm
-        << " from MIDI channel " << (getMostRecentSourceChannel() + 1)
-        << std::endl;
-    };
-    
-    void receivedSysEx (const uint8_t *sysExBuffer, const uint16_t length) override {
-        std::cout << "Received SysEx with content";
-        for (int i = 0; i < length; i++) {
-            std::cout << " 0x" << std::hex << std::setfill('0') << std::setw(2) << (int)sysExBuffer[i];
+
+    void receivedAftertouch (uint8_t note, uint8_t velocity) override {
+        std::cout << "Received ";
+        if (note == MonophonicAftertouch) {
+            std::cout << "monophonic afterouch";
         }
-        std::cout << std::endl;
-    };
+        else {
+            std::cout <<"polyphonic aftertouch from note " << (int)note;
+        }
+        std::cout << " with velocity " << (int)velocity << std::endl;
+    }
+
+    void receivedControlChange (uint8_t control, uint8_t value) override {
+        std::cout << "Received control change from control "
+                  << (int)control << " with value " << (int)value << std::endl;
+    }
+
+    void receivedProgramChange (uint8_t program) override {
+        std::cout << "Received program change to program " << (int)program << std::endl;
+    }
+
+    // will print a sysEx interpreted as chars
+    void receivedSysEx (const uint8_t *sysExBuffer, const uint16_t length) override {
+        std::string sysExAsString ((char*)(sysExBuffer + 1), length - 2);
+        std::cout << "Received Sys Ex with Content \"" << sysExAsString << "\"" << std::endl;
+    }
+
+    void receivedMIDITimecodeQuarterFrame (uint8_t quarterFrame) override {
+        lcd.clear();
+        lcd.print ("Timecode quarter");
+        lcd.print ("frame #");
+        lcd.print (quarterFrame);
+    }
+
+    void receivedMIDIClockTick() override {
+        // just toggle the LED state
+        digitalWrite (CLOCK_LED, !digitalRead (CLOCK_LED));
+    }
+
+    void receivedSongSelect (uint8_t selectedSong) override {
+        lcd.clear();
+        lcd.print ("Song select");
+        lcd.setCursor (0, 1);
+        lcd.print ("Song #");
+        lcd.print (selectedSong);
+    }
+
+    void receivedMIDIStart() override {
+        lcd.clear();
+        lcd.print ("Start");
+    }
+
+    void receivedMIDIStop() override {
+        lcd.clear();
+        lcd.print ("Stop");
+    }
+
+    void receivedMIDIContinue() override {
+        lcd.clear();
+        lcd.print ("Continue");
+    }
+
+    void receivedSongPositionPointer (uint16_t positionInBeats) override {
+        lcd.clear();
+        lcd.print ("Songposition ptr");
+        lcd.print ("Position: ");
+        lcd.print (positionInBeats);
+    }
+
+    void receivedTuneRequest() override {
+        lcd.clear();
+        lcd.print ("Tune request");
+    }
+
+    void receivedActiveSense() override {
+        // just toggle the led
+        digitalWrite (ACTIVE_SENSE_LED, !digitalRead (ACTIVE_SENSE_LED));
+    }
+
+    void receivedMIDIReset() override {
+        lcd.print("Reset ");
+    }
 };
 
 
