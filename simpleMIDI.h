@@ -87,7 +87,7 @@ class SimpleMIDI {
     // send MIDI Messages
     virtual RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff) = 0;
     virtual RetValue sendNote (uint8_t note, uint8_t velocity, bool onOff, Channel channel) = 0;
-    virtual RetValue sendAftertouchEvent (uint8_t note, uint8_t velucity) = 0;
+    virtual RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity) = 0;
     virtual RetValue sendAftertouchEvent (uint8_t note, uint8_t velocity, Channel channel) = 0;
     virtual RetValue sendControlChange (uint8_t control, uint8_t value) = 0;
     virtual RetValue sendControlChange (uint8_t control, uint8_t value, Channel channel) = 0;

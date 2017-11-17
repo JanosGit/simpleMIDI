@@ -89,16 +89,12 @@ public:
      */
     void receive() {
 
-        uint16_t numBytesAvailable = serialInterface.available();
-
-        while (numBytesAvailable) {
-            digitalWrite(6, LOW);
+        while (serialInterface.available()) {
 
             if (numBytesToWaitFor == 0) {
                 // waiting for the next message
                 midiDataBuffer[0] = serialInterface.read();
                 numBytesInMidiDataBuffer = 1;
-                numBytesAvailable--;
 
                 if (header >= 0b10000000){
                     // in this case it's really a midi header
@@ -263,7 +259,6 @@ public:
 
         }
 
-        digitalWrite(6, HIGH);
     }
 
 
@@ -358,7 +353,7 @@ public:
         return NoErrorCheckingForSpeedReasons;
     };
 
-    // todo: check if this works as expected
+    // todo: this does not work as expected
     RetValue sendPitchBend (int16_t pitch) { // override
 
         // the input value is biased arround 0, so an offset has to be applied to get it into the range
