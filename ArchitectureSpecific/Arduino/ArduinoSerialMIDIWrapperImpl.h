@@ -144,7 +144,7 @@ public:
                                 eventHandler = songSelectEventHandler;
                                 break;
 
-                            case SysExBegin:
+                            case (uint8_t)SysExBegin:
                                 // a negative numBytesToWaitFor will represent the number of sysex bytes in the buffer
                                 numBytesToWaitFor = -1;
                                 break;
@@ -240,11 +240,11 @@ public:
                 // is decreased by one
             else {
                 midiDataBuffer[-numBytesToWaitFor] = serialInterface.read();
-                if (midiDataBuffer[-numBytesToWaitFor] == SysExEnd) {
+                if (midiDataBuffer[-numBytesToWaitFor] == (uint8_t )SysExEnd) {
                     // now the end of a SysEx was reached
                     numBytesToWaitFor--;
                     numBytesInMidiDataBuffer = -numBytesToWaitFor;
-                    receivedSysEx (midiDataBuffer, numBytesInMidiDataBuffer);
+                    receivedSysEx ((char*)midiDataBuffer, numBytesInMidiDataBuffer);
                     numBytesToWaitFor = 0;
                     continue;
                 }
@@ -379,7 +379,7 @@ public:
     };
 
     //SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    RetValue sendSysEx (const uint8_t *sysExBuffer, uint16_t length) { // override
+    RetValue sendSysEx (const char *sysExBuffer, uint16_t length) { // override
         if (sysExBuffer[0] == SysExBegin) {
             if (sysExBuffer[length - 1] == SysExEnd) {
                 serialInterface.write (sysExBuffer, length);

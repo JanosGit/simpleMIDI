@@ -32,14 +32,14 @@ class SimpleMIDI {
     static const uint8_t PitchBendCmd =             0b1110; // 2 data Bytes
     // --> a command with a form of 0b110xxxxx will have only one data byte
     // 8 Bit commands
-    static const uint8_t SysExBegin =               0b11110000; // x data Bytes
+    static const char SysExBegin =               0b11110000; // x data Bytes
     static const uint8_t MIDITimecodeQuarterFrame = 0b11110001; // 1 data Byte
     static const uint8_t SongPositionPointerCmd =   0b11110010; // 2 data Bytes
     static const uint8_t SongSelectCmd =            0b11110011; // 1 data Byte
                                                 //  0b11110100 undefined
                                                 //  0b11110101 undefined
     static const uint8_t TuneRequest =              0b11110110; // 0 data Bytes
-    static const uint8_t SysExEnd =                 0b11110111; // 0 data Bytes
+    static const char SysExEnd =                 0b11110111; // 0 data Bytes
     static const uint8_t ClockTickCmd =             0b11111000; // 0 data Bytes
                                                 //  0b11111001 undefined
     static const uint8_t StartCmd =                 0b11111010; // 0 data Bytes
@@ -95,7 +95,7 @@ class SimpleMIDI {
     virtual RetValue sendProgramChange (uint8_t program, Channel channel) = 0;
     virtual RetValue sendPitchBend (int16_t pitch) = 0;
     // !! SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    virtual RetValue sendSysEx (const uint8_t *sysExBuffer, uint16_t length) = 0;
+    virtual RetValue sendSysEx (const char *sysExBuffer, uint16_t length) = 0;
     virtual RetValue sendMIDITimecodeQuarterFrame (uint8_t quarterFrame) = 0;
     virtual RetValue sendMIDISongPositionPointer (uint16_t positionInBeats) = 0;
     virtual RetValue sendSongSelect (uint8_t songToSelect) = 0;
@@ -238,7 +238,7 @@ class SimpleMIDI {
      * @param sysExBuffer A pointer to the buffer containing the received bytes
      * @param length      The number of bytes received
      */
-    virtual void receivedSysEx (const uint8_t *sysExBuffer, const uint16_t length) {};
+    virtual void receivedSysEx (const char *sysExBuffer, const uint16_t length) {};
 
     /**
      * Gets called when a MIDI timecode quarter frame was received. The application has to override this function if
