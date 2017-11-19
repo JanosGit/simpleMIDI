@@ -379,7 +379,8 @@ protected:
 #include <mutex>
 #include <chrono>
 /**
- * A class that launches a timer that automatically sends out MIDI clock ticks on a regular basis
+ * A class that launches a timer that automatically sends out MIDI clock ticks on a regular basis. If you need
+ * high precision better roll out your own version based on some high precision timer.
  */
 class MIDIClockGenerator {
 
@@ -429,7 +430,7 @@ public:
 
         timerIsActive = true;
 
-        //releasing the mutex will stop the thread
+        //releasing the mutex will start the thread
         timerThreadMutex.unlock ();
     }
 
@@ -469,6 +470,7 @@ private:
                 break;
 
             midiConnection.sendMIDIClockTick();
+            timerThreadMutex.unlock ();
         }
     }
 };
