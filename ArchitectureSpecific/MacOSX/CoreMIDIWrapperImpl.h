@@ -178,7 +178,7 @@ public:
     }
 
     //SysEx Messages must be framed by SYSEX_BEGIN and SYSEX_END
-    RetValue sendSysEx (const uint8_t *sysExBuffer, uint16_t length) override {
+    RetValue sendSysEx (const char *sysExBuffer, uint16_t length) override {
         if (sysExBuffer[0] == SysExBegin) {
             if (sysExBuffer[length - 1] == SysExEnd) {
                 sendMidiBytes ((uint8_t *) sysExBuffer, length);
@@ -301,7 +301,7 @@ protected:
         return 0;
     };
 
-    std::vector<uint8_t> sysExReceiveBuffer;
+    std::vector<char> sysExReceiveBuffer;
 
     static void readProc (const MIDIPacketList *newPackets, void *refCon, void *connRefCon) {
 
@@ -320,7 +320,7 @@ protected:
                 uint16_t currentPacketLength = packet->length;
 
                 for (uint16_t i = 0; i < currentPacketLength; i++) {
-                    callbackDestination->sysExReceiveBuffer.push_back (packet->data[i]);
+                    callbackDestination->sysExReceiveBuffer.push_back ((char)packet->data[i]);
 
                     if (packet->data[i] == SysExEnd) {
                         callbackDestination->receivedSysEx (callbackDestination->sysExReceiveBuffer.data (), callbackDestination->sysExReceiveBuffer.size ());
