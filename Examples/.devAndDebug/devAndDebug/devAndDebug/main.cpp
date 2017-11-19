@@ -7,7 +7,6 @@
 //
 
 #include <iostream>
-#include <iomanip>
 #include "../../../../simpleMIDI.h"
 
 
@@ -61,68 +60,49 @@ public:
     }
 
     // will print a sysEx interpreted as chars
-    void receivedSysEx (const uint8_t *sysExBuffer, const uint16_t length) override {
-        std::string sysExAsString ((char*)(sysExBuffer + 1), length - 2);
+    void receivedSysEx (const char *sysExBuffer, const uint16_t length) override {
+        std::string sysExAsString (sysExBuffer + 1, length - 2);
         std::cout << "Received Sys Ex with Content \"" << sysExAsString << "\"" << std::endl;
     }
 
     void receivedMIDITimecodeQuarterFrame (uint8_t quarterFrame) override {
-        lcd.clear();
-        lcd.print ("Timecode quarter");
-        lcd.print ("frame #");
-        lcd.print (quarterFrame);
-    }
-
-    void receivedMIDIClockTick() override {
-        // just toggle the LED state
-        digitalWrite (CLOCK_LED, !digitalRead (CLOCK_LED));
+        std::cout << "Received timecode quarter frame " << (int)quarterFrame << std::endl;
     }
 
     void receivedSongSelect (uint8_t selectedSong) override {
-        lcd.clear();
-        lcd.print ("Song select");
-        lcd.setCursor (0, 1);
-        lcd.print ("Song #");
-        lcd.print (selectedSong);
+        std::cout << "Received song select " << (int)selectedSong << std::endl;
     }
 
     void receivedMIDIStart() override {
-        lcd.clear();
-        lcd.print ("Start");
+        std::cout << "Received start" << std::endl;
     }
 
     void receivedMIDIStop() override {
-        lcd.clear();
-        lcd.print ("Stop");
+        std::cout << "Received stop" << std::endl;
     }
 
     void receivedMIDIContinue() override {
-        lcd.clear();
-        lcd.print ("Continue");
+        std::cout << "Received continue" << std::endl;
     }
 
     void receivedSongPositionPointer (uint16_t positionInBeats) override {
-        lcd.clear();
-        lcd.print ("Songposition ptr");
-        lcd.print ("Position: ");
-        lcd.print (positionInBeats);
+        std::cout << "Received song position pointer at position " << (int)positionInBeats << std::endl;
     }
 
     void receivedTuneRequest() override {
-        lcd.clear();
-        lcd.print ("Tune request");
+        std::cout << "Received tune request" << std::endl;
     }
 
     void receivedActiveSense() override {
-        // just toggle the led
-        digitalWrite (ACTIVE_SENSE_LED, !digitalRead (ACTIVE_SENSE_LED));
+        std::cout << "|A| ";
     }
 
     void receivedMIDIReset() override {
-        lcd.print("Reset ");
+        std::cout << "Received reset" << std::endl;
     }
 };
 
+void sendTestSequence(MyDerivedMIDIClass &midiInterface);
 
 int main() {
     
@@ -169,22 +149,81 @@ int main() {
     midiInterface.setReceiveChannel(SimpleMIDI::ChannelAny);
     
 
-    
+    // Setup a MIDI clock generator
+    MIDIClockGenerator midiClockGenerator (midiInterface);
+    midiClockGenerator.setIntervall (500, true);
+
+    std::this_thread::sleep_for (std::chrono::seconds (2));
     //Send some random Data
-    midiInterface.sendNote (0x23, 0x34, true);
-    midiInterface.sendControlChange (0x12, 0x36);
-    midiInterface.sendProgramChange (8);
-    uint8_t testSysEx[12] = {SimpleMIDI::SysExBegin, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SimpleMIDI::SysExEnd};
-    midiInterface.sendSysEx (testSysEx, 12);
+    sendTestSequence (midiInterface);
     
     //wait for incomming MIDI data or the users exit command
     bool running = true;
     while (running) {
         std::string exitCmd;
         std::cin >> exitCmd;
-        if(exitCmd.compare("x") == 0){
+        if(exitCmd.compare("x") == 0) {
             running = false;
+        }
+        else if(exitCmd.compare ("t") == 0) {
+            sendTestSequence (midiInterface);
         }
     }
 }
 
+
+void sendTestSequence(MyDerivedMIDIClass &midiInterface) {
+
+    midiInterface.sendNote (105, 101, SimpleMIDI::NoteOn);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendNote (83, 0, SimpleMIDI::NoteOff);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendControlChange (5, 18);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendAftertouchEvent (74, 12);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendAftertouchEvent (SimpleMIDI::MonophonicAftertouch, 63);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendProgramChange (1);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendPitchBend (-859);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    char sysExMsg[18] = " Hi from your PC!";
+    sysExMsg[0] = SimpleMIDI::SysExBegin;
+    sysExMsg[17] = SimpleMIDI::SysExEnd;
+    midiInterface.sendSysEx (sysExMsg, 18);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendMIDITimecodeQuarterFrame (55);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendMIDISongPositionPointer (1099);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendSongSelect (92);
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendTuneRequest();
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendMIDIStart();
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendMIDIStop();
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendMIDIContinue();
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendActiveSense();
+    std::this_thread::sleep_for (std::chrono::seconds (2));
+
+    midiInterface.sendReset ();
+}
