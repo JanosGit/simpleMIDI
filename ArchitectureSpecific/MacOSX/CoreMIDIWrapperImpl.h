@@ -316,13 +316,13 @@ protected:
             const uint8_t messageHeader = packet->data[0];
 
             // Process a SysEx if there is a SysExBegin header or if the sysExReceiveBuffer is still filled with unterminated data from the previous packet.
-            if ((messageHeader == SysExBegin) || (!callbackDestination->sysExReceiveBuffer.empty ())) {
+            if ((messageHeader == (uint8_t)SysExBegin) || (!callbackDestination->sysExReceiveBuffer.empty ())) {
                 uint16_t currentPacketLength = packet->length;
 
                 for (uint16_t i = 0; i < currentPacketLength; i++) {
                     callbackDestination->sysExReceiveBuffer.push_back ((char)packet->data[i]);
 
-                    if (packet->data[i] == SysExEnd) {
+                    if (packet->data[i] == (uint8_t)SysExEnd) {
                         callbackDestination->receivedSysEx (callbackDestination->sysExReceiveBuffer.data (), callbackDestination->sysExReceiveBuffer.size ());
 
                         // clear the sysExReceiveBuffer so that sysExReceiveBuffer.empty() will return true
