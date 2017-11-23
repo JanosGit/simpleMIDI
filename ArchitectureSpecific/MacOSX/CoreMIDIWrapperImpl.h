@@ -68,7 +68,7 @@ public:
         }
 
         //Send MIDI Data
-        this->sendMidiBytes (dataToSend, 3);
+        this->sendRawMIDIBuffer (dataToSend, 3);
 
         return Success;
     };
@@ -86,7 +86,7 @@ public:
             uint8_t dataToSend[2];
             dataToSend[0] = MonophonicAftertouchCmd << 4 | channel;
             dataToSend[1] = velocity;
-            this->sendMidiBytes (dataToSend, 2);
+            this->sendRawMIDIBuffer (dataToSend, 2);
         }
             // if not, check if the note is inside the range
         else if ((note >> 7) == 1)
@@ -96,7 +96,7 @@ public:
             dataToSend[0] = PolyphonicAftertouchCmd << 4 | channel;
             dataToSend[1] = note;
             dataToSend[2] = velocity;
-            this->sendMidiBytes (dataToSend, 3);
+            this->sendRawMIDIBuffer (dataToSend, 3);
         }
 
         return Success;
@@ -120,7 +120,7 @@ public:
         dataToSend[2] = value;
 
         //Send MIDI Data
-        this->sendMidiBytes (dataToSend, 3);
+        this->sendRawMIDIBuffer (dataToSend, 3);
 
         return Success;
     };
@@ -140,7 +140,7 @@ public:
         dataToSend[1] = program;
 
         //Send MIDI Data
-        this->sendMidiBytes (dataToSend, 2);
+        this->sendRawMIDIBuffer (dataToSend, 2);
 
         return Success;
     };
@@ -171,7 +171,7 @@ public:
         dataToSend[1] = lsb;
         dataToSend[2] = msb;
 
-        this->sendMidiBytes (dataToSend, 3);
+        this->sendRawMIDIBuffer (dataToSend, 3);
 
         return Success;
 
@@ -181,7 +181,7 @@ public:
     RetValue sendSysEx (const char *sysExBuffer, uint16_t length) override {
         if (sysExBuffer[0] == SysExBegin) {
             if (sysExBuffer[length - 1] == SysExEnd) {
-                sendMidiBytes ((uint8_t *) sysExBuffer, length);
+                sendRawMIDIBuffer ((uint8_t *) sysExBuffer, length);
                 return Success;
             }
             return MissingSysExEnd;
@@ -200,7 +200,7 @@ public:
         dataToSend[1] = quarterFrame;
 
         //Send MIDI Data
-        this->sendMidiBytes (dataToSend, 2);
+        this->sendRawMIDIBuffer (dataToSend, 2);
 
         return Success;
     };
@@ -220,7 +220,7 @@ public:
         dataToSend[1] = lsb;
         dataToSend[2] = msb;
 
-        this->sendMidiBytes (dataToSend, 3);
+        this->sendRawMIDIBuffer (dataToSend, 3);
 
         return Success;
     };
@@ -236,44 +236,54 @@ public:
         dataToSend[1] = songToSelect;
 
         //Send MIDI Data
-        this->sendMidiBytes (dataToSend, 2);
+        this->sendRawMIDIBuffer (dataToSend, 2);
 
         return Success;
     };
 
     void sendTuneRequest() override {
         uint8_t cmd = TuneRequest;
-        sendMidiBytes (&cmd, 1);
+        sendRawMIDIBuffer (&cmd, 1);
     };
 
     void sendMIDIClockTick() override {
         uint8_t cmd = ClockTickCmd;
-        this->sendMidiBytes (&cmd, 1);
+        this->sendRawMIDIBuffer (&cmd, 1);
     };
 
     void sendMIDIStart() override {
         uint8_t cmd = StartCmd;
-        this->sendMidiBytes (&cmd, 1);
+        this->sendRawMIDIBuffer (&cmd, 1);
     };
 
     void sendMIDIStop() override {
         uint8_t cmd = StopCmd;
-        this->sendMidiBytes (&cmd, 1);
+        this->sendRawMIDIBuffer (&cmd, 1);
     };
 
     void sendMIDIContinue() override {
         uint8_t cmd = ContinueCmd;
-        this->sendMidiBytes (&cmd, 1);
+        this->sendRawMIDIBuffer (&cmd, 1);
     };
 
     void sendActiveSense() override {
         uint8_t cmd = ActiveSense;
-        sendMidiBytes (&cmd, 1);
+        sendRawMIDIBuffer (&cmd, 1);
     };
 
     void sendReset() override {
         uint8_t cmd = MIDIReset;
-        sendMidiBytes (&cmd, 1);
+        sendRawMIDIBuffer (&cmd, 1);
+    };
+
+    void sendRawMIDIBuffer (uint8_t *bytesToSend, int length) override {
+        //Initialize Packetlist
+        pktList = (MIDIPacketList *) &buffer;
+        pkt = MIDIPacketListInit (pktList);
+        //Add bytes to send to list
+        pkt = MIDIPacketListAdd (pktList, 1024, pkt, 0, length, bytesToSend);
+        //Send list
+        MIDISend (outputPort, destination, pktList);
     };
 
 protected:
@@ -289,17 +299,6 @@ protected:
     char buffer[1024];
     MIDIPacketList *pktList;
     MIDIPacket *pkt;
-
-    int sendMidiBytes (uint8_t *bytesToSend, int length) {
-        //Initialize Packetlist
-        pktList = (MIDIPacketList *) &buffer;
-        pkt = MIDIPacketListInit (pktList);
-        //Add bytes to send to list
-        pkt = MIDIPacketListAdd (pktList, 1024, pkt, 0, length, bytesToSend);
-        //Send list
-        MIDISend (outputPort, destination, pktList);
-        return 0;
-    };
 
     std::vector<char> sysExReceiveBuffer;
 

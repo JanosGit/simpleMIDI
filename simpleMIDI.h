@@ -107,6 +107,12 @@ class SimpleMIDI {
     virtual void sendActiveSense() = 0;
     virtual void sendReset() = 0;
 
+    /**
+     * Sends out a raw buffer of bytes over the MIDI output. The caller must gurantee that this is a valid
+     * MIDI command.
+     */
+    virtual void sendRawMIDIBuffer (uint8_t *bytesToSend, int length) = 0;
+
 
     /**
      * Sets the channel all outgoing messages that use a channel (note, aftertouch, control change, program change
@@ -390,7 +396,8 @@ public:
      * in an RAII style.
      */
     MIDIClockGenerator (SimpleMIDI &midiConnectionToAttachTo) : midiConnection (midiConnectionToAttachTo) {
-        nextTick = std::chrono::system_clock::now ();
+        //nextTick = std::chrono::system_clock::now ();
+        nextTick = std::chrono::steady_clock::now ();
         // lock the mutex before launching the thread so that it blocks until it was started
         timerThreadMutex.lock ();
         timerThread = new std::thread (std::bind (&MIDIClockGenerator::timerThreadWork, this));
@@ -458,14 +465,14 @@ private:
     std::mutex timerThreadMutex;
     bool timerIsActive = false;
     bool timerThreadShouldExit = false;
-    std::chrono::milliseconds interval;
-    std::chrono::system_clock::time_point nextTick;
+    std::chrono::nanoseconds interval;
+    std::chrono::steady_clock::time_point nextTick;
 
     void timerThreadWork() {
         // launch an endless loop
         while (true) {
             std::this_thread::sleep_until (nextTick);
-            nextTick = std::chrono::system_clock::now () + interval;
+            nextTick = std::chrono::steady_clock::now () + interval;
 
             // If the timer has been stopped, it will be sleeping at this
             // point until the mutex was released
