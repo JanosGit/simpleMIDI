@@ -415,13 +415,17 @@ public:
      * @param withStartCommand          Sends a MIDI start command before starting the continous clock tick if true
      * @param withContinueCommand       Sends a MIDI continue command before starting the continous clock tick if true
      */
-    void setIntervall (int intervallInMilliseconds, bool withStartCommand = false, bool withContinueCommand = false) {
+    void setIntervall (uint64_t quarterNoteIntervallInMilliseconds, bool withStartCommand = false, bool withContinueCommand = false) {
+        // convert to nanoseconds for higher precision
+        quarterNoteIntervallInMilliseconds *= 1000000;
+        // convert to the corresponding midi clock tick intervall
+        quarterNoteIntervallInMilliseconds /= 24;
 
         // aquire the lock before changing the interval if the timer is already running
         if (timerIsActive)
             timerThreadMutex.lock ();
 
-        interval = std::chrono::milliseconds (intervallInMilliseconds);
+        interval = std::chrono::nanoseconds (quarterNoteIntervallInMilliseconds);
 
         if (withStartCommand)
             midiConnection.sendMIDIStart();
