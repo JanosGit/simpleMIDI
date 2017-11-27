@@ -459,7 +459,11 @@ public:
 
     void sendReset() { // override
         serialInterface.write (MIDIReset);
-    }
+    };
+
+    void sendRawMIDIBuffer (uint8_t *bytesToSend, int length) { // override
+        serialInterface.write (bytesToSend, length);
+    };
 
 private:
 
