@@ -382,7 +382,7 @@ public:
     RetValue sendSysEx (const char *sysExBuffer, uint16_t length) { // override
         if (sysExBuffer[0] == SysExBegin) {
             if (sysExBuffer[length - 1] == SysExEnd) {
-                serialInterface.write (sysExBuffer, length);
+                serialInterface.write ((const uint8_t*)sysExBuffer, length);
                 return Success;
             }
             return MissingSysExEnd;
