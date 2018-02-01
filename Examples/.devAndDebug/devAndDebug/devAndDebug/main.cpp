@@ -108,7 +108,7 @@ int main() {
     
     
     // Seach for connected devices
-    std::vector<SimpleMIDI::HardwareResource> connectedDevices = searchMIDIDevices();
+    std::vector<SimpleMIDI::HardwareResource> connectedDevices = SimpleMIDI::PlatformSpecificImplementation::searchMIDIDevices();
     
     
     
