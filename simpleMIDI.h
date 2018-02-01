@@ -76,12 +76,14 @@ public:
     virtual ~SimpleMIDI() {};
     
     enum RetValue : int8_t {
-        NoErrorCheckingForSpeedReasons = -1,
+        NoErrorCheckingForSpeedReasons = 1,
         Success = 0,
-        FirstArgumentOutOfRange = 1,
-        SecondArgumentOutOfRange = 2,
-        MissingSysExStart = 3,
-        MissingSysExEnd = 4
+        FirstArgumentOutOfRange = -1,
+        SecondArgumentOutOfRange = -2,
+        ThirdArgumentOutOfRange = -3,
+        FourthArgumentOutOfRange = -4,
+        MissingSysExStart = -5,
+        MissingSysExEnd = -6
     };
     
     // send MIDI Messages
@@ -106,14 +108,99 @@ public:
     virtual void sendMIDIContinue() = 0;
     virtual void sendActiveSense() = 0;
     virtual void sendReset() = 0;
-    
+
     /**
      * Sends out a raw buffer of bytes over the MIDI output. The caller must gurantee that this is a valid
      * MIDI command.
      */
     virtual void sendRawMIDIBuffer (uint8_t *bytesToSend, int length) = 0;
     
-    
+
+    /**
+     * Send an NRPN message with a high resolution 14 bit value. Parameter and value will be split
+     * into MSB and LSB parts. Valid range for both parameter and value are 0 to 16383.
+     */
+    RetValue sendHiResNRPN (uint16_t parameter, uint16_t value) {
+        if (parameter > 0b0011111111111111)
+            return FirstArgumentOutOfRange;
+        if (value > 0b0011111111111111)
+            return SecondArgumentOutOfRange;
+
+        sendHiResNRPN (parameter >> 7, parameter & 0b01111111, value >> 7, value & 0b01111111);
+
+        return Success;
+    }
+
+    /**
+     * Send an NRPN message with a high resolution 14 bit value. The parameter is passed as MSB and LSB
+     * seperately with a range from 0 to 127 for both arguments while the value is passed as a single
+     * 14 Bit value with a range from 0 to 16383.
+     */
+    RetValue sendHiResNRPN (uint8_t parameterMSB, uint8_t parameterLSB, uint16_t value) {
+        if (value > 0b0011111111111111)
+            return ThirdArgumentOutOfRange;
+
+        return sendHiResNRPN (parameterMSB, parameterLSB, value >> 7, value & 0b01111111);
+    }
+
+    /**
+     * Send an NRPN message with a high resolution 14 bit value. The parameter and value are passed as
+     * MSB and LSB seperately with a range from 0 to 127 for each argument.
+     */
+    RetValue sendHiResNRPN (uint8_t parameterMSB, uint8_t parameterLSB, uint8_t valueMSB, uint8_t valueLSB) {
+        if (parameterMSB > 0b01111111)
+            return FirstArgumentOutOfRange;
+        if (parameterLSB > 0b01111111)
+            return SecondArgumentOutOfRange;
+        if (valueMSB > 0b01111111)
+            return ThirdArgumentOutOfRange;
+        if (valueLSB > 0b01111111)
+            return FourthArgumentOutOfRange;
+
+        uint8_t sequence[12] = {ControlChangeCmd, 99, parameterMSB, ControlChangeCmd, 98, parameterLSB,
+                                ControlChangeCmd, 6, valueMSB, ControlChangeCmd, 38, valueLSB};
+
+        sendRawMIDIBuffer (sequence, 12);
+
+        return Success;
+    }
+
+    /**
+     * Send an NRPN message with a low resolution 7 bit value. The parameter is passed as a 14 Bit value
+     * with a range from 0 - 16383 while the value is an 8 bit value with a range from 0 - 127.
+     */
+    RetValue sendLoResNRPN (uint16_t parameter, uint8_t value) {
+        if (parameter > 0b0011111111111111)
+            return FirstArgumentOutOfRange;
+
+        RetValue r = sendLoResNRPN (parameter >> 7, parameter & 0b01111111, value);
+
+        if (r = ThirdArgumentOutOfRange)
+            return SecondArgumentOutOfRange;
+
+        return Success;
+    }
+
+    /**
+     * Send an NRPN message with a low resolution 7 bit value. The parameter is passed as MSB and LSB
+     * separately. The valid range for all three arguments is 0 - 127.
+     */
+    RetValue sendLoResNRPN (uint8_t parameterMSB, uint8_t parameterLSB, uint8_t value) {
+        if (parameterMSB > 0b01111111)
+            return FirstArgumentOutOfRange;
+        if (parameterLSB > 0b01111111)
+            return SecondArgumentOutOfRange;
+        if (value > 0b01111111)
+            return ThirdArgumentOutOfRange;
+
+        uint8_t sequence[9] = {ControlChangeCmd, 99, parameterMSB, ControlChangeCmd, 98, parameterLSB,
+                               ControlChangeCmd, 6, value};
+
+        sendRawMIDIBuffer (sequence, 9);
+
+        return Success;
+    }
+
     /**
      * Sets the channel all outgoing messages that use a channel (note, aftertouch, control change, program change
      * and pitch bend) use if they are called without a channel argument.
