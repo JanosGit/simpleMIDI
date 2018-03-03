@@ -70,7 +70,7 @@ public:
 
                     // If a nullpointer is returned, no direct char buffer is available. A call to CFStringGetCString does the conversion
                     if (nameCStrPointer == NULL) {
-                        long int length = CFStringGetLength (deviceNameCFString);
+                        long int length = CFStringGetLength (deviceNameCFString) + 1;
                         char nameCStrBuffer[length];
                         CFStringGetCString (deviceNameCFString, nameCStrBuffer, length, kCFStringEncodingASCII);
                         d.deviceName = std::string (nameCStrBuffer);
