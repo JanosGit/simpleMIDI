@@ -37,6 +37,7 @@ public:
 
 
     ~CoreMIDIWrapper () override {
+        MIDIPortDisconnectSource (inputPort, source);
     };
 
     /** Returns all coreMIDI devices currently available */
