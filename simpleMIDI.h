@@ -175,7 +175,7 @@ public:
 
         RetValue r = sendLoResNRPN (parameter >> 7, parameter & 0b01111111, value);
 
-        if (r = ThirdArgumentOutOfRange)
+        if (r == ThirdArgumentOutOfRange)
             return SecondArgumentOutOfRange;
 
         return Success;
